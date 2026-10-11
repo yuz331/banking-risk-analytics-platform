@@ -1,0 +1,37 @@
+-- Phase 2: synthetic source data. All timestamps are UTC; amounts are CAD cents.
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS customers (
+    customer_id TEXT PRIMARY KEY NOT NULL,
+    segment TEXT NOT NULL CHECK (segment IN ('PERSONAL', 'SMALL_BUSINESS')),
+    onboarding_date TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS accounts (
+    account_id TEXT PRIMARY KEY NOT NULL,
+    customer_id TEXT NOT NULL REFERENCES customers(customer_id),
+    account_type TEXT NOT NULL CHECK (account_type IN ('CHEQUING', 'SAVINGS')),
+    opening_date TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS transactions (
+    transaction_id TEXT PRIMARY KEY NOT NULL,
+    account_id TEXT NOT NULL REFERENCES accounts(account_id),
+    transaction_time TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL CHECK (typeof(amount_cents) = 'integer' AND amount_cents > 0),
+    direction TEXT NOT NULL CHECK (direction IN ('IN', 'OUT')),
+    transaction_type TEXT NOT NULL CHECK (transaction_type IN (
+        'E_TRANSFER', 'BILL_PAYMENT', 'DIRECT_DEPOSIT', 'DEBIT_PURCHASE',
+        'WIRE', 'CASH_DEPOSIT', 'ATM_WITHDRAWAL'
+    )),
+    counterparty_id TEXT NOT NULL,
+    counterparty_country TEXT NOT NULL CHECK (
+        length(counterparty_country) = 2 AND counterparty_country GLOB '[A-Z][A-Z]'
+    ),
+    status TEXT NOT NULL CHECK (status IN ('POSTED', 'PENDING', 'FAILED', 'REVERSED'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_accounts_customer ON accounts(customer_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_account_time
+    ON transactions(account_id, transaction_time);
+CREATE INDEX IF NOT EXISTS idx_transactions_time ON transactions(transaction_time);

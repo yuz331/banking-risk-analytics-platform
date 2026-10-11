@@ -1,10 +1,10 @@
 # Business Requirements Document (BRD)
 
 **Project:** Banking Transaction Monitoring & Risk Analytics Platform  
-**Version:** 0.1 (Initial Draft)  
+**Version:** 0.2 (Phase 2 progress update)
 **Date:** October 11, 2026  
 **Project type:** Independent portfolio project — educational prototype  
-**Status:** Proposed / Not yet implemented
+**Status:** Partially implemented — synthetic generation, SQLite import and SQL exploration complete; risk rules, alerts, reviews and dashboard pending
 
 ## 1. Business Problem
 
@@ -142,3 +142,20 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 ---
 
 *Document control: initial, unapproved portfolio-project requirements draft. Update this document as design choices and test results become available.*
+
+## 13. Implementation Progress — October 11, 2026
+
+- Phase 1: reproducible synthetic generator and an injected R002 scenario implemented.
+- Phase 2: `sql/schema.sql`, `sql/analysis.sql`, `src/load_database.py` and
+  `src/analyze_data.py` implemented. FR-01/FR-02 are covered by validated import,
+  duplicate checks, foreign keys and tests; see `docs/phase2_validation.md`.
+- Amounts use integer CAD cents in SQLite; source CSV amounts retain two decimal
+  places. All timestamps use the generator's documented UTC convention.
+- Unchanged snapshot imports are no-ops. Changed snapshots require a new database
+  path to preserve existing records. There is no incremental ingestion in Phase 2.
+- Customers, accounts and transactions exist in the current schema. Alerts,
+  evidence links and reviews remain Phase 3/4 work; their schema is deferred until
+  rule and review designs are resolved.
+- A 50,000-transaction import and all 12 current automated tests passed. No risk
+  detection accuracy, false-positive rate or production performance is claimed.
+- The remaining MVP criteria and open rule-design questions are still pending.
