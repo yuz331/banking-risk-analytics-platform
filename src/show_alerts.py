@@ -48,7 +48,7 @@ def main():
     parser.add_argument("--status", choices=("NEW", "IN_REVIEW", "CLOSED"))
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--with-evidence", action="store_true")
-    parser.add_argument("--rule", choices=("R001", "R002"))
+    parser.add_argument("--rule", choices=("R001", "R002", "R003"))
     args = parser.parse_args()
     try:
         result = read_alerts(args.db, args.account, args.alert_id, args.priority,

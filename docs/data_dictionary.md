@@ -51,8 +51,8 @@ simply exclude records whose status is not POSTED.
 | alerts | alert_id | Deterministic primary key from rule, version, parameters, account and ordered evidence IDs |
 | alerts | rule_id, rule_version, parameters_json | Detection rule and exact thresholds used |
 | alerts | account_id | Foreign key to accounts |
-| alerts | event_start_utc, event_end_utc | R002: first/last event evidence times; R001: trigger time for both fields |
-| alerts | peak_count, evidence_count | R002: maximum rolling count; R001: 1 trigger. Evidence count includes all linked rows, including R001 baseline |
+| alerts | event_start_utc, event_end_utc | R002: event first/last evidence times; R001: trigger time; R003: receipt/outgoing times |
+| alerts | peak_count, evidence_count | R002: maximum rolling count; R001: 1 trigger; R003: pair size 2. Evidence count includes all linked rows |
 | alerts | score, priority | 0–100 illustrative score; LOW/MEDIUM/HIGH |
 | alerts | created_time_utc | Actual detection/save time in UTC |
 | alerts | status | NEW, IN_REVIEW or CLOSED; detection initializes NEW and preserves existing status |
@@ -67,5 +67,8 @@ The alert reader opens in read-only mode and can filter account, ID, priority an
 status and rule. R001 details contain trigger_transaction_id, history_count,
 history_start_utc, history_end_utc and median_twice_cents. Divide median_twice_cents
 by 200 to display CAD, preserving a possible half-cent median. Evidence joins
-include the trigger and all baseline rows. Review notes, dispositions and a
-review UI are not implemented yet.
+include the trigger and all baseline rows. R003 details contain inbound_transaction_id,
+outbound_transaction_id, inbound_amount_cents, outbound_amount_cents and elapsed_seconds;
+its two evidence records are one same-account incoming/outgoing pair. A transaction
+is paired once within an R003 configuration, but can be evidence for another rule
+or configuration. Review notes, dispositions and a review UI are not implemented yet.

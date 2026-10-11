@@ -1,10 +1,10 @@
 # Business Requirements Document (BRD)
 
 **Project:** Banking Transaction Monitoring & Risk Analytics Platform  
-**Version:** 0.4 (R001 implementation update)
+**Version:** 0.5 (R003 implementation update)
 **Date:** October 11, 2026  
 **Project type:** Independent portfolio project — educational prototype  
-**Status:** Partially implemented — generation, SQLite, SQL exploration and R001/R002 alerts complete; R003/R004, review workflow and dashboard pending
+**Status:** Partially implemented — generation, SQLite, SQL exploration and R001/R002/R003 alerts complete; R004, review workflow and dashboard pending
 
 ## 1. Business Problem
 
@@ -79,7 +79,7 @@ These are **illustrative project parameters**, not thresholds adopted by FINTRAC
 | --- | --- |
 | R001 | Transaction > 4x account historical median **and** > CAD 2,000. |
 | R002 | At least 5 outgoing transfers within 60 minutes for the same account. |
-| R003 | Material inbound funds followed by a substantial outbound transfer within 24 hours. Detailed threshold to be defined during implementation. |
+| R003 | Posted receipt >=CAD 5,000 followed strictly later by one outbound transfer >=80% of that receipt within 24 hours; one-to-one latest-qualifying matching. |
 | R004 | International transfer with unusual destination/frequency/size versus available account history. Detailed threshold to be defined during implementation. |
 
 Alerts are indicators for **human review**, not proof of wrongdoing. The first release should de-duplicate repeated hits associated with the same event. Rule thresholds should be configurable and documented.
@@ -134,7 +134,7 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 
 ## 12. Open Questions (To Resolve During Build)
 
-- What exact proportion of an incoming payment should R003 regard as a substantial outbound movement?
+- R003's incoming floor and outbound proportion are resolved in section 16; future expansion to aggregated outflows remains open.
 - How should accounts with little historical transaction data be handled by R004? R001's minimum-history treatment is resolved in section 15.
 - What rules will group multiple triggering transactions into a single alert event?
 - Should reviewing an alert lock a copy of the original supporting transactions?
@@ -205,3 +205,28 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 - All 39 tests passed. Optional-seed 50,000-row run: 276 R001 alerts in about 0.13s,
   1 R002 alert in about 0.09s; both repeated with zero new alerts. All R001 baselines
   and evidence sets were independently recomputed. See `docs/R001_rule_spec.md`.
+
+## 16. Phase 3 Progress — R003, October 11, 2026
+
+- R003 v1 uses same-account POSTED incoming E_TRANSFER/WIRE/DIRECT_DEPOSIT/
+  CASH_DEPOSIT receipts >=CAD 5,000 and outgoing E_TRANSFER/WIRE transfers.
+  Default outbound threshold is >=80% of one receipt; time condition is strictly
+  after receipt and <=24 hours. Thresholds and window are configurable.
+- Chronological outgoing transfers choose the latest qualifying unmatched receipt,
+  with transaction ID ordering for timestamp ties. Same-time receipts are not
+  prior receipts. Both records are used once per rule/configuration. This is a
+  documented timing/amount heuristic, not fund provenance or maximum matching.
+- Evidence contains exactly the matched pair. Rule details record incoming/outgoing
+  IDs, exact cents and elapsed seconds. Illustrative fixed score 70 maps to HIGH.
+  Alert, evidence and details share one transaction and remain unchanged on reruns.
+- `--rule all` now runs three rules; all configurations/overrides are checked before
+  any detection writes. Existing default R002 CLI behavior is preserved.
+- Optional generator flag `--include-r003` reserves a CAD 10,000 receipt and
+  CAD 8,500 transfer six hours later. Existing default/R001-only outputs are
+  unchanged. Use a new snapshot path for new scenario combinations.
+- FR-03 now covers three of four rules, with positive/negative automated tests.
+  R004, dashboard, review workflow and export remain pending.
+- All 53 tests passed. 50,000-row snapshot with both optional flags: R001 277,
+  R002 1, R003 2 alerts; R003 ran in approximately 0.28s. All planted scenarios
+  matched evidence. Full-dataset independent R003 pairing matched both events;
+  all three reruns produced zero new alerts. See `docs/R003_rule_spec.md`.

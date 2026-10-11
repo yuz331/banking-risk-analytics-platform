@@ -43,8 +43,8 @@ cost grows with per-account history size; this is a batch portfolio prototype.
 One qualifying candidate produces one alert per rule configuration. Alert ID hashes
 rule/version, parameters, account and ordered evidence IDs. Reruns on the immutable
 snapshot/config skip existing IDs, preserving status, timestamps and evidence.
-Changed configurations coexist with prior alerts. A two-rule `--rule all` run uses
-one transaction per rule, not a single transaction covering both rules.
+Changed configurations coexist with prior alerts. A multi-rule `--rule all` run uses
+one transaction per rule, not a single transaction covering all rules.
 
 Evidence comprises every baseline transaction plus the candidate. `alert_details`
 contains trigger_transaction_id, history_count, exact median_twice_cents and first/
@@ -121,4 +121,5 @@ python3 src/detect_risks.py --db data/r001demo.db --rule all
 Choose a fresh path if that database contains different CSV input. The optional
 seed reserves six transactions within the requested count; the existing R002 seed
 reserves five. Detection reads only database transactions, not scenario labels.
-R003/R004, dashboard and analyst review workflow remain pending.
+This records the R001 milestone. R003 is now implemented (see `R003_rule_spec.md`);
+the current suite has 53 passing tests. R004, dashboard and review workflow remain pending.

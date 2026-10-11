@@ -45,18 +45,20 @@ def write_csv(path, columns, records):
 
 
 def create_dataset(count=1000, customer_count=300, account_count=450,
-                   seed=42, output_dir=Path("data"), include_r001=False):
+                   seed=42, output_dir=Path("data"), include_r001=False, include_r003=False):
     """Write customers, accounts, transactions and seeded-scenario CSVs.
 
     One intentionally planted R002 scenario contains five outbound transfers
     from the same account over forty minutes. include_r001 optionally reserves
     six records for five CAD 100 historical transfers and a CAD 5,000 trigger.
+    include_r003 optionally reserves a CAD 10,000 receipt and CAD 8,500 transfer.
     All data are synthetic. Default output is unchanged by the optional seed.
     """
     if count < 5 or customer_count < 1 or account_count < customer_count:
         raise ValueError("Require transactions >= 5 and accounts >= customers >= 1")
-    if include_r001 and count < 11:
-        raise ValueError("R001 + R002 seeded scenarios require transactions >= 11")
+    reserved = 5 + (6 if include_r001 else 0) + (2 if include_r003 else 0)
+    if count < reserved:
+        raise ValueError(f"Selected seeded scenarios require transactions >= {reserved}")
 
     rng = random.Random(seed)
     output_dir = Path(output_dir)
@@ -86,7 +88,10 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
     r001_account = "A00002" if account_count >= 2 else "A00001"
     r001_start = START + timedelta(hours=12)
     r001_trigger_time = r001_start + timedelta(days=5)
-    for _ in range(count - 5 - (6 if include_r001 else 0)):
+    r003_account = f"A{min(3, account_count):05d}"
+    r003_start = datetime(2026, 3, 10, 9, 0)
+    r003_end = r003_start + timedelta(hours=6)
+    for _ in range(count - reserved):
         kind = rng.choices(TRANSACTION_TYPES, weights=TYPE_WEIGHTS)[0]
         direction = ("IN" if kind in ("DIRECT_DEPOSIT", "CASH_DEPOSIT")
                      else "OUT" if kind in ("BILL_PAYMENT", "DEBIT_PURCHASE", "ATM_WITHDRAWAL")
@@ -101,6 +106,9 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
         # eligible transfers on this account through the trigger become inbound.
         if include_r001 and account_id == r001_account and happened <= r001_trigger_time and kind in ("E_TRANSFER", "WIRE"):
             direction = "IN"
+        if include_r003 and account_id == r003_account and r003_start - timedelta(hours=24) <= happened <= r003_end:
+            # Isolate the demonstration pair from competing receipts/transfers.
+            kind, direction, country = "BILL_PAYMENT", "OUT", "CA"
         transactions.append({
             "account_id": account_id,
             "transaction_time": timestamp(happened),
@@ -143,6 +151,18 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
             r001_transactions.append(record)
             transactions.append(record)
 
+    r003_transactions = []
+    if include_r003:
+        for happened, direction, amount in ((r003_start, "IN", "10000.00"), (r003_end, "OUT", "8500.00")):
+            record = {
+                "account_id": r003_account, "transaction_time": timestamp(happened),
+                "amount_cad": amount, "direction": direction, "transaction_type": "WIRE",
+                "counterparty_id": "CP04001" if direction == "IN" else "CP04002",
+                "counterparty_country": "CA", "status": "POSTED",
+            }
+            r003_transactions.append(record)
+            transactions.append(record)
+
     transactions.sort(key=lambda record: (record["transaction_time"], record["account_id"]))
     for number, record in enumerate(transactions, start=1):
         record["transaction_id"] = f"T{number:07d}"
@@ -160,6 +180,12 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
             "start_time_utc": timestamp(r001_start), "end_time_utc": timestamp(r001_trigger_time),
             "transaction_ids": "|".join(record["transaction_id"] for record in r001_transactions),
         })
+    if include_r003:
+        scenarios.append({
+            "scenario_id": "S003", "rule_id": "R003", "account_id": r003_account,
+            "start_time_utc": timestamp(r003_start), "end_time_utc": timestamp(r003_end),
+            "transaction_ids": "|".join(record["transaction_id"] for record in r003_transactions),
+        })
 
     write_csv(output_dir / "customers.csv", (
         "customer_id", "segment", "onboarding_date"), customers)
@@ -172,7 +198,8 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
 
     return {"customers": len(customers), "accounts": len(accounts),
             "transactions": len(transactions), "scenario_transactions": len(scenario_ids),
-            "r001_scenario_transactions": len(r001_transactions)}
+            "r001_scenario_transactions": len(r001_transactions),
+            "r003_scenario_transactions": len(r003_transactions)}
 
 
 def main():
@@ -183,11 +210,12 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", type=Path, default=Path("data"))
     parser.add_argument("--include-r001", action="store_true", help="Include five historical transfers and an unusual-amount trigger")
+    parser.add_argument("--include-r003", action="store_true", help="Include a material receipt and rapid outbound transfer")
     args = parser.parse_args()
 
     try:
         result = create_dataset(args.transactions, args.customers, args.accounts,
-                                args.seed, args.output_dir, args.include_r001)
+                                args.seed, args.output_dir, args.include_r001, args.include_r003)
     except ValueError as error:
         parser.error(str(error))
 
@@ -196,6 +224,8 @@ def main():
     print(f"Seeded R002 scenario: {result['scenario_transactions']} outbound transfers in 40 minutes")
     if args.include_r001:
         print("Seeded R001 scenario: five CAD 100 historical transfers, then a CAD 5,000 transfer")
+    if args.include_r003:
+        print("Seeded R003 scenario: CAD 10,000 receipt, then CAD 8,500 transfer six hours later")
 
 
 if __name__ == "__main__":

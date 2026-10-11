@@ -10,6 +10,7 @@ An independent educational portfolio project showcasing banking transaction data
 - [x] Phase 2 — normalized SQLite database, validated import and SQL exploration
 - [x] Phase 3 — R002 high-velocity detection, persisted alerts and evidence
 - [x] Phase 3 — R001 unusual amount detection and historical baseline evidence
+- [x] Phase 3 — R003 rapid incoming/outgoing funds and one-to-one evidence pairs
 - [ ] Phase 3 — four explainable risk detection rules
 - [ ] Phase 4 — Streamlit dashboard, case review and UAT
 
@@ -39,7 +40,7 @@ Use `--seed 42` (default) to reproduce the same dataset, or provide a different 
 
 All dates and times in CSV files are illustrative and stored in UTC. `amount_cad` is formatted with two decimal places. The artificial customer and account identifiers do not identify real people.
 
-Generated CSVs under `data/` are ignored by Git. The scenario labels provide **test input**, not model performance evidence. R001 and R002 detection are implemented below; R003 and R004 remain pending. The rules use illustrative prototype criteria, not regulatory reporting thresholds.
+Generated CSVs under `data/` are ignored by Git. The scenario labels provide **test input**, not model performance evidence. R001, R002 and R003 detection are implemented below; R004 remains pending. The rules use illustrative prototype criteria, not regulatory reporting thresholds.
 
 ## Phase 2: Load SQLite and explore activity
 
@@ -162,7 +163,7 @@ MEDIUM/HIGH alerts and its score is not a probability or bank-approved risk rati
 All **26 automated tests passed** after R002 implementation. See
 `docs/R002_rule_spec.md` for event grouping, parameter semantics, limitations and
 validation evidence. This records the R002 milestone; the current suite includes
-39 passing tests after R001 below.
+53 passing tests after R003 below.
 
 ## Phase 3, second rule: R001 unusual amount
 
@@ -182,9 +183,9 @@ python3 src/show_alerts.py --rule R001 --with-evidence --limit 5
 Defaults and overrides: `min_history=5`, `lookback_days=30`, `multiplier=4`,
 `minimum_amount_cents=200000`, configured in `config/rules.json`.
 For example, `--rule R001 --min-history 10 --lookback-days 60` requests a longer
-history and more observations. `--rule all` runs both implemented rules; with no
+history and more observations. `--rule all` runs all three implemented rules; with no
 `--rule`, the CLI still runs R002 for compatibility. Each rule saves in its own
-transaction; both selected configurations are validated before detection starts.
+transaction; all selected configurations are validated before detection starts.
 
 ### Reproduce a clearly explainable R001 scenario
 
@@ -228,6 +229,74 @@ These counts describe this artificial dataset, not detection accuracy. Combining
 e-Transfer and wire history can flag ordinary differences between transfer types;
 future refinement may use separate baselines. R001's illustrative score is
 `min(100, 60 + 10 * (floor(amount / median) - multiplier))`; shared priority mapping
-is unchanged. See `docs/R001_rule_spec.md`. Next: R003 rapid incoming/outgoing funds.
+is unchanged. See `docs/R001_rule_spec.md`. These counts record the R001 milestone
+before the optional R003 seed was added; they use a different synthetic snapshot.
+
+## Phase 3, third rule: R003 rapid incoming/outgoing funds
+
+R003 flags a **posted receipt of at least CAD 5,000 followed by one outbound
+e-Transfer/wire of at least 80% of that receipt within 24 hours** on the same
+account. The outbound must occur strictly after the receipt; exactly 24 hours
+qualifies. Eligible incoming types: E_TRANSFER, WIRE, DIRECT_DEPOSIT, CASH_DEPOSIT.
+
+Each outbound chooses the latest qualifying unmatched receipt. Each receipt and
+outbound is paired once per rule/configuration. Small outflows are not accumulated.
+This detects a timing/amount pattern, not which funds actually financed a transfer.
+
+Run against an existing database:
+
+```bash
+python3 src/detect_risks.py --rule R003
+python3 src/show_alerts.py --rule R003 --with-evidence
+```
+
+Defaults in `config/rules.json`: `minimum_inbound_cents=500000`,
+`outbound_percentage=80`, `window_hours=24`. For example:
+`python3 src/detect_risks.py --rule R003 --outbound-percentage 90 --window-hours 12`.
+`--rule all` now runs R001/R002/R003, with per-rule transactions and prevalidation
+of all selected thresholds. The no-argument default remains R002.
+
+### Demonstrate all three rules
+
+Use a separate snapshot for the new optional R003 scenario:
+
+```bash
+python3 src/generate_data.py --transactions 50000 --include-r001 --include-r003 --output-dir data/r003demo
+python3 src/load_database.py --data-dir data/r003demo --db data/r003demo.db
+python3 src/detect_risks.py --db data/r003demo.db --rule all
+python3 src/show_alerts.py --db data/r003demo.db --rule R003 --account A00003 --with-evidence
+```
+
+The R003 seed adds a CAD 10,000 incoming wire and a CAD 8,500 outgoing wire six
+hours later on account A00003 (highest existing account if fewer than three).
+The optional flag reserves two rows within the requested total, alongside R002's
+five and optional R001's six: minimum 7 rows for R003, or 13 with both flags.
+To isolate the seeded pair, random transactions on its account from 24 hours
+before the receipt through the outgoing time become outbound domestic bill
+payments. Default and R001-only generation remain byte-identical without this flag.
+
+An R003 alert has exactly two evidence rows, `peak_count=2`, receipt/outgoing event
+times, and details identifying each transaction, its amount in cents and elapsed
+seconds. The score is an illustrative fixed 70 (HIGH), not a fraud probability.
+Repeat detection preserves all alert fields and evidence.
+
+### R003 validation evidence
+
+All **53 tests passed**, including 14 R003 tests covering amount/time equality,
+one-cent ratio boundaries, same-time exclusion, latest-qualifying pairing,
+one-use constraints, account/status/type exclusions, write rollback, config
+validation and 100 random datasets checked against an independent pairing oracle.
+
+With seed 42, 50,000 rows and both optional flags, R003 processed 1,050 material
+receipts and 8,690 outbound transfers, producing **2 alerts** in approximately
+**0.28 seconds**. Its seeded alert was CAD 10,000 in, CAD 8,500 out, elapsed six
+hours. R001 produced 277 alerts and R002 produced 1 on this snapshot. All three
+planted scenarios matched saved evidence, and a repeated run added zero alerts
+across all three rules. An independent full-dataset oracle matched both R003 pairs.
+
+Greedy matching does not enumerate every possible pairing or maximize pair count;
+multiple deposits, pooled funds and aggregated outflows remain outside R003 v1.
+Synthetic counts and runtime are not detection accuracy or production capacity.
+See `docs/R003_rule_spec.md`. Next: R004 unusual cross-border activity.
 
 See `BRD.md` for the planned business requirements.

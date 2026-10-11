@@ -27,20 +27,28 @@ def validate_parameters(min_count, window_minutes):
         raise ValueError("R002 window_minutes must be an integer >= 1")
 
 
+def rule_registry():
+    from rule_unusual_amount import detect_r001, validate_r001_parameters
+    from rule_rapid_in_out import detect_r003, validate_r003_parameters
+    return {
+        "R001": (detect_r001, validate_r001_parameters,
+                 {"min_history", "lookback_days", "multiplier", "minimum_amount_cents"}),
+        "R002": (detect_r002, validate_parameters, {"min_count", "window_minutes"}),
+        "R003": (detect_r003, validate_r003_parameters,
+                 {"minimum_inbound_cents", "outbound_percentage", "window_hours"}),
+    }
+
+
 def load_parameters(path=ROOT / "config" / "rules.json", rule="R002"):
     config = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(config, dict) or not set(config).issubset({"R001", "R002"}) or rule not in config:
+    registry = rule_registry()
+    if not isinstance(config, dict) or not set(config).issubset(registry) or rule not in config:
         raise ValueError(f"Config must contain the requested {rule} and only implemented rules")
     parameters = config[rule]
-    keys = ({"min_count", "window_minutes"} if rule == "R002" else
-            {"min_history", "lookback_days", "multiplier", "minimum_amount_cents"})
+    _, validator, keys = registry[rule]
     if not isinstance(parameters, dict) or set(parameters) != keys:
         raise ValueError(f"{rule} config requires exactly {', '.join(sorted(keys))}")
-    if rule == "R002":
-        validate_parameters(**parameters)
-    else:
-        from rule_unusual_amount import validate_r001_parameters
-        validate_r001_parameters(**parameters)
+    validator(**parameters)
     return parameters
 
 
@@ -104,35 +112,30 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", type=Path, default=Path("data/banking.db"))
     parser.add_argument("--config", type=Path, default=ROOT / "config" / "rules.json")
-    parser.add_argument("--rule", choices=("R001", "R002", "all"), default="R002")
+    parser.add_argument("--rule", choices=("R001", "R002", "R003", "all"), default="R002")
     parser.add_argument("--min-count", type=int)
     parser.add_argument("--window-minutes", type=int)
     parser.add_argument("--min-history", type=int)
     parser.add_argument("--lookback-days", type=int)
     parser.add_argument("--multiplier", type=int)
     parser.add_argument("--minimum-amount-cents", type=int)
+    parser.add_argument("--minimum-inbound-cents", type=int)
+    parser.add_argument("--outbound-percentage", type=int)
+    parser.add_argument("--window-hours", type=int)
     args = parser.parse_args()
     try:
-        from rule_unusual_amount import detect_r001
-        selected = ("R001", "R002") if args.rule == "all" else (args.rule,)
-        allowed = {"min_count", "window_minutes"} if args.rule == "R002" else {
-            "min_history", "lookback_days", "multiplier", "minimum_amount_cents"}
-        if args.rule == "all":
-            allowed |= {"min_count", "window_minutes"}
-        overrides = {name: getattr(args, name) for name in (
-            "min_count", "window_minutes", "min_history", "lookback_days", "multiplier", "minimum_amount_cents")
-            if getattr(args, name) is not None}
+        registry = rule_registry()
+        selected = tuple(registry) if args.rule == "all" else (args.rule,)
+        allowed = set().union(*(registry[rule][2] for rule in selected))
+        all_parameter_names = set().union(*(item[2] for item in registry.values()))
+        overrides = {name: getattr(args, name) for name in all_parameter_names if getattr(args, name) is not None}
         if not set(overrides).issubset(allowed):
             raise ValueError("An override applies to a rule that was not selected")
         configurations = {rule: load_parameters(args.config, rule) for rule in selected}
         for rule, parameters in configurations.items():
             parameters.update({key: value for key, value in overrides.items() if key in parameters})
-            if rule == "R002":
-                validate_parameters(**parameters)
-            else:
-                from rule_unusual_amount import validate_r001_parameters
-                validate_r001_parameters(**parameters)
-        results = [(detect_r002 if rule == "R002" else detect_r001)(args.db, **parameters)
+            registry[rule][1](**parameters)
+        results = [registry[rule][0](args.db, **parameters)
                    for rule, parameters in configurations.items()]
         result = results if args.rule == "all" else results[0]
     except (ValueError, OSError, sqlite3.Error) as error:
