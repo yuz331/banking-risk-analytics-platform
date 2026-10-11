@@ -1,4 +1,4 @@
-# Phase 2 data dictionary and design decisions
+# Source and alert data dictionary
 
 All records are synthetic. One snapshot spans one currency (CAD). Dates and
 timestamps are text in ISO order; timestamps mean UTC without a suffix.
@@ -44,4 +44,23 @@ simply exclude records whose status is not POSTED.
 - **Read-only exploration:** the query runner opens an existing database in
   read-only mode. It does not create alerts or modify transaction records.
 
-Alerts, evidence links, scores and review records are deferred to later phases.
+## Phase 3 alert tables
+
+| Table | Fields | Meaning / constraints |
+| --- | --- | --- |
+| alerts | alert_id | Deterministic primary key from rule, version, parameters, account and ordered evidence IDs |
+| alerts | rule_id, rule_version, parameters_json | Detection rule and exact thresholds used |
+| alerts | account_id | Foreign key to accounts |
+| alerts | event_start_utc, event_end_utc | First/last evidence transaction timestamps; grouped event can exceed one window |
+| alerts | peak_count, evidence_count | Maximum rolling-window count; number of linked source transactions |
+| alerts | score, priority | 0–100 illustrative score; LOW/MEDIUM/HIGH |
+| alerts | created_time_utc | Actual detection/save time in UTC |
+| alerts | status | NEW, IN_REVIEW or CLOSED; detection initializes NEW and preserves existing status |
+| alerts | explanation | Human-readable trigger and event description |
+| alert_transactions | alert_id, transaction_id | Composite primary key; foreign keys to alerts and transactions |
+
+Detection saves an alert and its evidence in one transaction. Evidence is joined
+to the immutable source snapshot, not copied. Direct source edits are unsupported.
+Rule configuration experiments coexist; inspect parameters when comparing alerts.
+The alert reader opens in read-only mode and can filter account, ID, priority and
+status. Review notes, dispositions and a review UI are not implemented yet.

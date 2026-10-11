@@ -1,0 +1,6 @@
+{
+  "R002": {
+    "min_count": 5,
+    "window_minutes": 60
+  }
+}

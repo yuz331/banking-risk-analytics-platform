@@ -8,6 +8,7 @@ An independent educational portfolio project showcasing banking transaction data
 - [x] Phase 1 — synthetic CSV transaction generator
 - [x] Phase 1 — automated generator tests
 - [x] Phase 2 — normalized SQLite database, validated import and SQL exploration
+- [x] Phase 3 — R002 high-velocity detection, persisted alerts and evidence
 - [ ] Phase 3 — four explainable risk detection rules
 - [ ] Phase 4 — Streamlit dashboard, case review and UAT
 
@@ -37,7 +38,7 @@ Use `--seed 42` (default) to reproduce the same dataset, or provide a different 
 
 All dates and times in CSV files are illustrative and stored in UTC. `amount_cad` is formatted with two decimal places. The artificial customer and account identifiers do not identify real people.
 
-Generated `data/*.csv` files are ignored by Git. The scenario labels provide **test input**, not model performance evidence. The monitoring engine has not been implemented yet. Rule R002 is an illustrative prototype criterion, not a regulatory reporting threshold.
+Generated CSVs under `data/` are ignored by Git. The scenario labels provide **test input**, not model performance evidence. R002 detection is implemented below; R001, R003 and R004 remain pending. Rule R002 is an illustrative prototype criterion, not a regulatory reporting threshold.
 
 ## Phase 2: Load SQLite and explore activity
 
@@ -107,9 +108,58 @@ seconds**, including CSV validation, on the development container. An identical
 re-import made no changes; all six SQL queries ran; daily and overview totals
 reconciled to the source CSVs; SQLite integrity and foreign-key checks passed.
 The default 1,000-transaction pipeline also passed. Runtime depends on hardware
-and is not a production throughput claim. Detection runtime is not yet measured.
+and is not a production throughput claim. R002 detection evidence is recorded below.
 
 See `docs/data_dictionary.md` and `docs/phase2_validation.md` for design choices
-and reproducible checks. Next: Phase 3 risk rules, explainable alerts and evidence links.
+and reproducible checks.
+
+## Phase 3, first rule: R002 high velocity
+
+R002 looks for at least **5 posted outbound e-Transfers/wires within an inclusive
+60-minute rolling window for one account**. It merges qualifying windows sharing
+transactions into one explainable event and persists it in `alerts`, with evidence
+links in `alert_transactions`. It reads transactions, not injected scenario labels.
+
+If you already loaded a database during Phase 2, these commands add the alert
+tables automatically and preserve your source records:
+
+```bash
+python3 src/detect_risks.py
+python3 src/show_alerts.py --account A00001 --with-evidence
+```
+
+For a fresh setup, run the Phase 1/2 commands first. All current code uses the Python
+standard library. `--db` selects a different existing SQLite snapshot.
+
+The default seed-42 50,000-row dataset yielded **1 event**: account `A00001`,
+5 outgoing transfers from 2026-02-15 10:00 to 10:40 UTC, score 60, MEDIUM priority.
+Detection processed 8,684 eligible transfers in approximately **0.11 seconds** on
+the development container, including initial alert schema creation and persistence.
+Repeating detection reported 0 new alerts and 1 existing alert. The planted
+scenario's five transaction IDs matched the saved evidence. Counts can differ
+with another seed, dataset size or configuration; this is not accuracy evidence.
+
+### Configure and inspect
+
+Defaults live in `config/rules.json`. Override them for an experiment:
+
+```bash
+python3 src/detect_risks.py --min-count 6 --window-minutes 30
+python3 src/show_alerts.py --priority HIGH --status NEW --limit 20
+python3 src/show_alerts.py --account A00001 --with-evidence
+```
+
+Alerts retain the rule version and parameters used. Changed configurations produce
+separate results; older alerts remain visible. Identical snapshot/configuration
+reruns retain IDs, creation timestamps, status and evidence. The inspector is
+read-only; editing statuses and saving review notes through a UI remain pending.
+
+R002's illustrative score is `min(100, 60 + 10 * (peak_count - min_count))`.
+Scores <40 map to LOW, 40–69 to MEDIUM, and 70–100 to HIGH. This rule produces
+MEDIUM/HIGH alerts and its score is not a probability or bank-approved risk rating.
+
+All **26 automated tests passed** after R002 implementation. See
+`docs/R002_rule_spec.md` for event grouping, parameter semantics, limitations and
+validation evidence. Next: R001 unusual amount detection, then R003/R004 and the dashboard.
 
 See `BRD.md` for the planned business requirements.

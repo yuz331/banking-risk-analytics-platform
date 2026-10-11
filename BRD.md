@@ -1,10 +1,10 @@
 # Business Requirements Document (BRD)
 
 **Project:** Banking Transaction Monitoring & Risk Analytics Platform  
-**Version:** 0.2 (Phase 2 progress update)
+**Version:** 0.3 (R002 implementation update)
 **Date:** October 11, 2026  
 **Project type:** Independent portfolio project — educational prototype  
-**Status:** Partially implemented — synthetic generation, SQLite import and SQL exploration complete; risk rules, alerts, reviews and dashboard pending
+**Status:** Partially implemented — generation, SQLite, SQL exploration and R002 alerts complete; R001/R003/R004, review workflow and dashboard pending
 
 ## 1. Business Problem
 
@@ -143,7 +143,7 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 
 *Document control: initial, unapproved portfolio-project requirements draft. Update this document as design choices and test results become available.*
 
-## 13. Implementation Progress — October 11, 2026
+## 13. Phase 2 Progress Record — October 11, 2026
 
 - Phase 1: reproducible synthetic generator and an injected R002 scenario implemented.
 - Phase 2: `sql/schema.sql`, `sql/analysis.sql`, `src/load_database.py` and
@@ -159,3 +159,26 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 - A 50,000-transaction import and all 12 current automated tests passed. No risk
   detection accuracy, false-positive rate or production performance is claimed.
 - The remaining MVP criteria and open rule-design questions are still pending.
+
+## 14. Phase 3 Progress — R002, October 11, 2026
+
+- R002 v1 detects POSTED outbound E_TRANSFER/WIRE transactions, default >=5 in an
+  inclusive 60-minute rolling window. Parameters are configurable; see
+  `docs/R002_rule_spec.md` for the resolved R002 grouping and score choices.
+- Overlapping qualifying windows sharing transactions are grouped into one event.
+  Disjoint windows remain separate. Event evidence can span longer than 60 minutes;
+  peak_count records the maximum count in an actual qualifying rolling window.
+- `alerts` and `alert_transactions` persist the account, rule version, parameters,
+  event times, explanation, score/priority, status, detection time and source IDs.
+  Existing Phase 2 databases are upgraded additively.
+- Re-running on the same immutable snapshot/configuration generates no duplicate
+  alerts and preserves existing status/evidence. Changing rule parameters creates
+  a distinct detection result; historical alerts are not retired automatically.
+- FR-03 is partially implemented (one of four rules). FR-04 and FR-05 have R002
+  evidence. FR-06 has CLI filters/drill-down, with dashboard implementation pending.
+  FR-07/FR-08/FR-09 remain pending.
+- Source transaction evidence is referenced in the immutable snapshot; frozen
+  evidence copies and review locking remain unresolved for a future mutable system.
+- All 26 tests passed. On the seed-42 50,000-row snapshot, 8,684 eligible transfers
+  produced one alert in about 0.11 seconds, with all five planted scenario IDs.
+  A repeat produced zero new alerts. This is functional evidence, not model accuracy.

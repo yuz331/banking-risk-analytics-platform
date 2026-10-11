@@ -35,3 +35,30 @@ CREATE INDEX IF NOT EXISTS idx_accounts_customer ON accounts(customer_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_account_time
     ON transactions(account_id, transaction_time);
 CREATE INDEX IF NOT EXISTS idx_transactions_time ON transactions(transaction_time);
+
+-- Phase 3: persisted detection results. Review workflow remains a later phase.
+CREATE TABLE IF NOT EXISTS alerts (
+    alert_id TEXT PRIMARY KEY NOT NULL,
+    rule_id TEXT NOT NULL,
+    rule_version TEXT NOT NULL,
+    account_id TEXT NOT NULL REFERENCES accounts(account_id),
+    parameters_json TEXT NOT NULL,
+    event_start_utc TEXT NOT NULL,
+    event_end_utc TEXT NOT NULL,
+    peak_count INTEGER NOT NULL CHECK (peak_count > 0),
+    evidence_count INTEGER NOT NULL CHECK (evidence_count >= peak_count),
+    score INTEGER NOT NULL CHECK (score BETWEEN 0 AND 100),
+    priority TEXT NOT NULL CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')),
+    created_time_utc TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'NEW' CHECK (status IN ('NEW', 'IN_REVIEW', 'CLOSED')),
+    explanation TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS alert_transactions (
+    alert_id TEXT NOT NULL REFERENCES alerts(alert_id),
+    transaction_id TEXT NOT NULL REFERENCES transactions(transaction_id),
+    PRIMARY KEY (alert_id, transaction_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_account ON alerts(account_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_priority_status ON alerts(priority, status);
