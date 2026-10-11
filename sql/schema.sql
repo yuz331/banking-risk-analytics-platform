@@ -62,3 +62,9 @@ CREATE TABLE IF NOT EXISTS alert_transactions (
 
 CREATE INDEX IF NOT EXISTS idx_alerts_account ON alerts(account_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_priority_status ON alerts(priority, status);
+
+-- Rule-specific details, added without changing previously saved R002 alerts.
+CREATE TABLE IF NOT EXISTS alert_details (
+    alert_id TEXT PRIMARY KEY NOT NULL REFERENCES alerts(alert_id),
+    details_json TEXT NOT NULL
+);

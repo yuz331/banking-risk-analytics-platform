@@ -1,10 +1,10 @@
 # Business Requirements Document (BRD)
 
 **Project:** Banking Transaction Monitoring & Risk Analytics Platform  
-**Version:** 0.3 (R002 implementation update)
+**Version:** 0.4 (R001 implementation update)
 **Date:** October 11, 2026  
 **Project type:** Independent portfolio project — educational prototype  
-**Status:** Partially implemented — generation, SQLite, SQL exploration and R002 alerts complete; R001/R003/R004, review workflow and dashboard pending
+**Status:** Partially implemented — generation, SQLite, SQL exploration and R001/R002 alerts complete; R003/R004, review workflow and dashboard pending
 
 ## 1. Business Problem
 
@@ -135,7 +135,7 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 ## 12. Open Questions (To Resolve During Build)
 
 - What exact proportion of an incoming payment should R003 regard as a substantial outbound movement?
-- How should accounts with little historical transaction data be handled by R001 and R004?
+- How should accounts with little historical transaction data be handled by R004? R001's minimum-history treatment is resolved in section 15.
 - What rules will group multiple triggering transactions into a single alert event?
 - Should reviewing an alert lock a copy of the original supporting transactions?
 
@@ -182,3 +182,26 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 - All 26 tests passed. On the seed-42 50,000-row snapshot, 8,684 eligible transfers
   produced one alert in about 0.11 seconds, with all five planted scenario IDs.
   A repeat produced zero new alerts. This is functional evidence, not model accuracy.
+
+## 15. Phase 3 Progress — R001, October 11, 2026
+
+- R001 v1 evaluates POSTED outbound E_TRANSFER/WIRE transactions against the
+  account's preceding 30-day history, requiring at least five prior eligible rows.
+  Baseline interval: [trigger time minus 30 days, trigger time); current,
+  same-timestamp and future transactions are excluded. Too little history is
+  counted and skipped, not assigned a safe/risky classification.
+- Trigger remains strict: amount >CAD 2,000 AND amount >4x historical median.
+  Thresholds/history parameters are configurable. Integer comparisons preserve
+  exact half-cent medians for even counts. One qualifying transaction/configuration
+  produces one alert with all baseline source IDs plus the trigger.
+- `alert_details` stores exact median, history count/times and trigger ID without
+  changing existing R002 rows. Shared storage preserves deterministic alert IDs,
+  timestamps, status and evidence on reruns. Rule details and evidence are atomic.
+- FR-03 now covers two of four rules. FR-04/FR-05 have R001 and R002 evidence;
+  CLI filtering includes rule ID. Review workflow, dashboard and export are pending.
+- Optional generator flag `--include-r001` provides a five-transfer CAD 100 baseline
+  followed by CAD 5,000. Default generation is unchanged; use a new snapshot path
+  for the optional dataset. Scenario labels are never inputs to detection.
+- All 39 tests passed. Optional-seed 50,000-row run: 276 R001 alerts in about 0.13s,
+  1 R002 alert in about 0.09s; both repeated with zero new alerts. All R001 baselines
+  and evidence sets were independently recomputed. See `docs/R001_rule_spec.md`.

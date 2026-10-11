@@ -9,6 +9,7 @@ An independent educational portfolio project showcasing banking transaction data
 - [x] Phase 1 — automated generator tests
 - [x] Phase 2 — normalized SQLite database, validated import and SQL exploration
 - [x] Phase 3 — R002 high-velocity detection, persisted alerts and evidence
+- [x] Phase 3 — R001 unusual amount detection and historical baseline evidence
 - [ ] Phase 3 — four explainable risk detection rules
 - [ ] Phase 4 — Streamlit dashboard, case review and UAT
 
@@ -38,7 +39,7 @@ Use `--seed 42` (default) to reproduce the same dataset, or provide a different 
 
 All dates and times in CSV files are illustrative and stored in UTC. `amount_cad` is formatted with two decimal places. The artificial customer and account identifiers do not identify real people.
 
-Generated CSVs under `data/` are ignored by Git. The scenario labels provide **test input**, not model performance evidence. R002 detection is implemented below; R001, R003 and R004 remain pending. Rule R002 is an illustrative prototype criterion, not a regulatory reporting threshold.
+Generated CSVs under `data/` are ignored by Git. The scenario labels provide **test input**, not model performance evidence. R001 and R002 detection are implemented below; R003 and R004 remain pending. The rules use illustrative prototype criteria, not regulatory reporting thresholds.
 
 ## Phase 2: Load SQLite and explore activity
 
@@ -160,6 +161,73 @@ MEDIUM/HIGH alerts and its score is not a probability or bank-approved risk rati
 
 All **26 automated tests passed** after R002 implementation. See
 `docs/R002_rule_spec.md` for event grouping, parameter semantics, limitations and
-validation evidence. Next: R001 unusual amount detection, then R003/R004 and the dashboard.
+validation evidence. This records the R002 milestone; the current suite includes
+39 passing tests after R001 below.
+
+## Phase 3, second rule: R001 unusual amount
+
+R001 flags a posted outbound e-Transfer/wire only when its amount is **strictly
+greater than CAD 2,000 and 4 times the account's historical transfer median**.
+The baseline uses the prior 30 days, with at least 5 posted outbound transfers
+required. Current, same-timestamp and future records are excluded. Insufficient
+history is counted in the run summary and produces no alert.
+
+Run R001 against an existing database (no regeneration required):
+
+```bash
+python3 src/detect_risks.py --rule R001
+python3 src/show_alerts.py --rule R001 --with-evidence --limit 5
+```
+
+Defaults and overrides: `min_history=5`, `lookback_days=30`, `multiplier=4`,
+`minimum_amount_cents=200000`, configured in `config/rules.json`.
+For example, `--rule R001 --min-history 10 --lookback-days 60` requests a longer
+history and more observations. `--rule all` runs both implemented rules; with no
+`--rule`, the CLI still runs R002 for compatibility. Each rule saves in its own
+transaction; both selected configurations are validated before detection starts.
+
+### Reproduce a clearly explainable R001 scenario
+
+Use a new CSV folder and database path so existing snapshots are preserved:
+
+```bash
+python3 src/generate_data.py --transactions 50000 --include-r001 --output-dir data/r001demo
+python3 src/load_database.py --data-dir data/r001demo --db data/r001demo.db
+python3 src/detect_risks.py --db data/r001demo.db --rule all
+python3 src/show_alerts.py --db data/r001demo.db --rule R001 --account A00002 --with-evidence --limit 1
+```
+
+The optional seed adds five CAD 100 transfers on separate days, then a CAD 5,000
+transfer on account A00002 (A00001 if only one account exists). It reserves six
+records within the requested transaction count; R002 still reserves five. At least
+11 records are required with `--include-r001`. Random outbound transfers on the
+seed account through the trigger time are converted to inbound to keep this
+teaching baseline exact. Without this flag, the original generator output remains
+byte-identical for the same seed/counts.
+
+R001 evidence includes the trigger and **all** prior baseline transfers. Details
+identify `trigger_transaction_id`, `history_count`, history start/end and
+`median_twice_cents` (divide by 200 to get CAD; this preserves half-cent medians).
+An R001 alert's event time is the trigger time and `peak_count=1`; evidence_count
+includes baseline records. One alert is saved per qualifying transaction/config.
+
+### R001 validation evidence
+
+All **39 tests passed**, including threshold equality, exact even-count medians,
+30-day expiry, history insufficiency, eligibility filters, same-timestamp/future
+exclusion, repeat safety, atomic detail persistence and an independent median oracle.
+
+The seed-42 50,000-row optional-seed run loaded 8,689 eligible transfers and
+produced **276 R001 alerts** in approximately **0.13 seconds**, plus **1 R002
+alert** in approximately **0.09 seconds**. R001 skipped 3,379 transactions for
+insufficient history. The planted CAD 5,000 trigger used a CAD 100 median and five
+historical transactions; its score was 100 (HIGH). All 276 saved baselines and
+evidence sets were independently recomputed. Repeating both rules added zero alerts.
+
+These counts describe this artificial dataset, not detection accuracy. Combining
+e-Transfer and wire history can flag ordinary differences between transfer types;
+future refinement may use separate baselines. R001's illustrative score is
+`min(100, 60 + 10 * (floor(amount / median) - multiplier))`; shared priority mapping
+is unchanged. See `docs/R001_rule_spec.md`. Next: R003 rapid incoming/outgoing funds.
 
 See `BRD.md` for the planned business requirements.

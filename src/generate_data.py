@@ -45,14 +45,18 @@ def write_csv(path, columns, records):
 
 
 def create_dataset(count=1000, customer_count=300, account_count=450,
-                   seed=42, output_dir=Path("data")):
+                   seed=42, output_dir=Path("data"), include_r001=False):
     """Write customers, accounts, transactions and seeded-scenario CSVs.
 
     One intentionally planted R002 scenario contains five outbound transfers
-    from the same account over forty minutes. All other data are synthetic.
+    from the same account over forty minutes. include_r001 optionally reserves
+    six records for five CAD 100 historical transfers and a CAD 5,000 trigger.
+    All data are synthetic. Default output is unchanged by the optional seed.
     """
     if count < 5 or customer_count < 1 or account_count < customer_count:
         raise ValueError("Require transactions >= 5 and accounts >= customers >= 1")
+    if include_r001 and count < 11:
+        raise ValueError("R001 + R002 seeded scenarios require transactions >= 11")
 
     rng = random.Random(seed)
     output_dir = Path(output_dir)
@@ -79,7 +83,10 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
         })
 
     transactions = []
-    for _ in range(count - 5):
+    r001_account = "A00002" if account_count >= 2 else "A00001"
+    r001_start = START + timedelta(hours=12)
+    r001_trigger_time = r001_start + timedelta(days=5)
+    for _ in range(count - 5 - (6 if include_r001 else 0)):
         kind = rng.choices(TRANSACTION_TYPES, weights=TYPE_WEIGHTS)[0]
         direction = ("IN" if kind in ("DIRECT_DEPOSIT", "CASH_DEPOSIT")
                      else "OUT" if kind in ("BILL_PAYMENT", "DEBIT_PURCHASE", "ATM_WITHDRAWAL")
@@ -89,8 +96,13 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
         amount_cents = max(100, min(amount_cents, 5_000_000))
         happened = START + timedelta(minutes=rng.randrange(DAYS * 24 * 60))
         country = rng.choices(["CA", "US", "GB", "JP"], weights=[50, 30, 12, 8])[0] if kind == "WIRE" else "CA"
+        account_id = f"A{rng.randint(1, account_count):05d}"
+        # Keep the optional seed's first five-transfer baseline exact. Random
+        # eligible transfers on this account through the trigger become inbound.
+        if include_r001 and account_id == r001_account and happened <= r001_trigger_time and kind in ("E_TRANSFER", "WIRE"):
+            direction = "IN"
         transactions.append({
-            "account_id": f"A{rng.randint(1, account_count):05d}",
+            "account_id": account_id,
             "transaction_time": timestamp(happened),
             "amount_cad": f"{amount_cents / 100:.2f}",
             "direction": direction,
@@ -100,7 +112,7 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
             "status": "POSTED",
         })
 
-    # A deliberately injected example for future R002 high-velocity detection.
+    # A deliberately injected example for R002 high-velocity detection.
     injected_transactions = []
     for minute in (0, 10, 20, 30, 40):
         scenario_tx = {
@@ -116,11 +128,38 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
         injected_transactions.append(scenario_tx)
         transactions.append(scenario_tx)
 
+    r001_transactions = []
+    if include_r001:
+        # Five CAD 100 transfers on separate days, then one CAD 5,000 transfer.
+        for day in range(6):
+            record = {
+                "account_id": r001_account,
+                "transaction_time": timestamp(r001_start + timedelta(days=day)),
+                "amount_cad": "100.00" if day < 5 else "5000.00",
+                "direction": "OUT", "transaction_type": "E_TRANSFER",
+                "counterparty_id": f"CP{3001 + day:05d}",
+                "counterparty_country": "CA", "status": "POSTED",
+            }
+            r001_transactions.append(record)
+            transactions.append(record)
+
     transactions.sort(key=lambda record: (record["transaction_time"], record["account_id"]))
     for number, record in enumerate(transactions, start=1):
         record["transaction_id"] = f"T{number:07d}"
 
     scenario_ids = [record["transaction_id"] for record in injected_transactions]
+    scenarios = [{
+        "scenario_id": "S001", "rule_id": "R002", "account_id": "A00001",
+        "start_time_utc": timestamp(SEED_EVENT_START),
+        "end_time_utc": timestamp(SEED_EVENT_START + timedelta(minutes=40)),
+        "transaction_ids": "|".join(scenario_ids),
+    }]
+    if include_r001:
+        scenarios.append({
+            "scenario_id": "S002", "rule_id": "R001", "account_id": r001_account,
+            "start_time_utc": timestamp(r001_start), "end_time_utc": timestamp(r001_trigger_time),
+            "transaction_ids": "|".join(record["transaction_id"] for record in r001_transactions),
+        })
 
     write_csv(output_dir / "customers.csv", (
         "customer_id", "segment", "onboarding_date"), customers)
@@ -129,17 +168,11 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
     write_csv(output_dir / "transactions.csv", TRANSACTION_COLUMNS, transactions)
     write_csv(output_dir / "injected_scenarios.csv", (
         "scenario_id", "rule_id", "account_id", "start_time_utc",
-        "end_time_utc", "transaction_ids"), [{
-            "scenario_id": "S001",
-            "rule_id": "R002",
-            "account_id": "A00001",
-            "start_time_utc": timestamp(SEED_EVENT_START),
-            "end_time_utc": timestamp(SEED_EVENT_START + timedelta(minutes=40)),
-            "transaction_ids": "|".join(scenario_ids),
-        }])
+        "end_time_utc", "transaction_ids"), scenarios)
 
     return {"customers": len(customers), "accounts": len(accounts),
-            "transactions": len(transactions), "scenario_transactions": len(scenario_ids)}
+            "transactions": len(transactions), "scenario_transactions": len(scenario_ids),
+            "r001_scenario_transactions": len(r001_transactions)}
 
 
 def main():
@@ -149,17 +182,20 @@ def main():
     parser.add_argument("--accounts", type=int, default=450)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output-dir", type=Path, default=Path("data"))
+    parser.add_argument("--include-r001", action="store_true", help="Include five historical transfers and an unusual-amount trigger")
     args = parser.parse_args()
 
     try:
         result = create_dataset(args.transactions, args.customers, args.accounts,
-                                args.seed, args.output_dir)
+                                args.seed, args.output_dir, args.include_r001)
     except ValueError as error:
         parser.error(str(error))
 
     print(f"Created {result['customers']} customers, {result['accounts']} accounts, "
           f"{result['transactions']} transactions in {args.output_dir}/")
     print(f"Seeded R002 scenario: {result['scenario_transactions']} outbound transfers in 40 minutes")
+    if args.include_r001:
+        print("Seeded R001 scenario: five CAD 100 historical transfers, then a CAD 5,000 transfer")
 
 
 if __name__ == "__main__":

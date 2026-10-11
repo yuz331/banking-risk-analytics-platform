@@ -51,16 +51,21 @@ simply exclude records whose status is not POSTED.
 | alerts | alert_id | Deterministic primary key from rule, version, parameters, account and ordered evidence IDs |
 | alerts | rule_id, rule_version, parameters_json | Detection rule and exact thresholds used |
 | alerts | account_id | Foreign key to accounts |
-| alerts | event_start_utc, event_end_utc | First/last evidence transaction timestamps; grouped event can exceed one window |
-| alerts | peak_count, evidence_count | Maximum rolling-window count; number of linked source transactions |
+| alerts | event_start_utc, event_end_utc | R002: first/last event evidence times; R001: trigger time for both fields |
+| alerts | peak_count, evidence_count | R002: maximum rolling count; R001: 1 trigger. Evidence count includes all linked rows, including R001 baseline |
 | alerts | score, priority | 0–100 illustrative score; LOW/MEDIUM/HIGH |
 | alerts | created_time_utc | Actual detection/save time in UTC |
 | alerts | status | NEW, IN_REVIEW or CLOSED; detection initializes NEW and preserves existing status |
 | alerts | explanation | Human-readable trigger and event description |
 | alert_transactions | alert_id, transaction_id | Composite primary key; foreign keys to alerts and transactions |
+| alert_details | alert_id, details_json | Rule-specific metadata; primary/foreign key to alerts, optional for legacy R002 |
 
 Detection saves an alert and its evidence in one transaction. Evidence is joined
 to the immutable source snapshot, not copied. Direct source edits are unsupported.
 Rule configuration experiments coexist; inspect parameters when comparing alerts.
 The alert reader opens in read-only mode and can filter account, ID, priority and
-status. Review notes, dispositions and a review UI are not implemented yet.
+status and rule. R001 details contain trigger_transaction_id, history_count,
+history_start_utc, history_end_utc and median_twice_cents. Divide median_twice_cents
+by 200 to display CAD, preserving a possible half-cent median. Evidence joins
+include the trigger and all baseline rows. Review notes, dispositions and a
+review UI are not implemented yet.

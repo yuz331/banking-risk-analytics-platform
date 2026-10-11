@@ -1,4 +1,10 @@
 {
+  "R001": {
+    "min_history": 5,
+    "lookback_days": 30,
+    "multiplier": 4,
+    "minimum_amount_cents": 200000
+  },
   "R002": {
     "min_count": 5,
     "window_minutes": 60

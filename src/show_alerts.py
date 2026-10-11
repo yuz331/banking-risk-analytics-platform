@@ -8,12 +8,12 @@ from pathlib import Path
 
 
 def read_alerts(db_path, account=None, alert_id=None, priority=None, status=None,
-                limit=10, with_evidence=False):
+                limit=10, with_evidence=False, rule=None):
     if type(limit) is not int or limit < 1:
         raise ValueError("limit must be an integer >= 1")
     predicates, values = [], []
     for column, value in (("account_id", account), ("alert_id", alert_id),
-                          ("priority", priority), ("status", status)):
+                          ("priority", priority), ("status", status), ("rule_id", rule)):
         if value is not None:
             predicates.append(f"{column} = ?")
             values.append(value)
@@ -25,6 +25,11 @@ def read_alerts(db_path, account=None, alert_id=None, priority=None, status=None
             (*values, limit))]
         for alert in result:
             alert["parameters"] = json.loads(alert.pop("parameters_json"))
+            # Older Phase 3 databases may not yet have the additive details table.
+            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='alert_details'").fetchone():
+                details = connection.execute("SELECT details_json FROM alert_details WHERE alert_id=?", (alert["alert_id"],)).fetchone()
+                if details:
+                    alert["details"] = json.loads(details[0])
             if with_evidence:
                 alert["transactions"] = [dict(row) for row in connection.execute("""
                     SELECT t.* FROM alert_transactions e
@@ -43,10 +48,11 @@ def main():
     parser.add_argument("--status", choices=("NEW", "IN_REVIEW", "CLOSED"))
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--with-evidence", action="store_true")
+    parser.add_argument("--rule", choices=("R001", "R002"))
     args = parser.parse_args()
     try:
         result = read_alerts(args.db, args.account, args.alert_id, args.priority,
-                             args.status, args.limit, args.with_evidence)
+                             args.status, args.limit, args.with_evidence, args.rule)
     except (ValueError, OSError, sqlite3.Error) as error:
         parser.exit(1, f"Cannot read alerts: {error}\nRun src/detect_risks.py first.\n")
     print(json.dumps(result, indent=2))
