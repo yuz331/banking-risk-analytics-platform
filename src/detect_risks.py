@@ -30,12 +30,15 @@ def validate_parameters(min_count, window_minutes):
 def rule_registry():
     from rule_unusual_amount import detect_r001, validate_r001_parameters
     from rule_rapid_in_out import detect_r003, validate_r003_parameters
+    from rule_cross_border import detect_r004, validate_r004_parameters
     return {
         "R001": (detect_r001, validate_r001_parameters,
                  {"min_history", "lookback_days", "multiplier", "minimum_amount_cents"}),
         "R002": (detect_r002, validate_parameters, {"min_count", "window_minutes"}),
         "R003": (detect_r003, validate_r003_parameters,
                  {"minimum_inbound_cents", "outbound_percentage", "window_hours"}),
+        "R004": (detect_r004, validate_r004_parameters,
+                 {"min_wire_history", "wire_lookback_days", "wire_multiplier", "minimum_cross_border_cents"}),
     }
 
 
@@ -112,7 +115,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", type=Path, default=Path("data/banking.db"))
     parser.add_argument("--config", type=Path, default=ROOT / "config" / "rules.json")
-    parser.add_argument("--rule", choices=("R001", "R002", "R003", "all"), default="R002")
+    parser.add_argument("--rule", choices=("R001", "R002", "R003", "R004", "all"), default="R002")
     parser.add_argument("--min-count", type=int)
     parser.add_argument("--window-minutes", type=int)
     parser.add_argument("--min-history", type=int)
@@ -122,6 +125,10 @@ def main():
     parser.add_argument("--minimum-inbound-cents", type=int)
     parser.add_argument("--outbound-percentage", type=int)
     parser.add_argument("--window-hours", type=int)
+    parser.add_argument("--min-wire-history", type=int)
+    parser.add_argument("--wire-lookback-days", type=int)
+    parser.add_argument("--wire-multiplier", type=int)
+    parser.add_argument("--minimum-cross-border-cents", type=int)
     args = parser.parse_args()
     try:
         registry = rule_registry()

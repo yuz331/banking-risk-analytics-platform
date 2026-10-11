@@ -7,7 +7,9 @@ Python standard library only; no real customers or financial information.
 import argparse
 import csv
 import math
+import os
 import random
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -38,25 +40,37 @@ def timestamp(value):
 
 
 def write_csv(path, columns, records):
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=columns)
-        writer.writeheader()
-        writer.writerows(records)
+    """Replace one CSV only after its full write succeeds."""
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", newline="", encoding="utf-8",
+                                         dir=path.parent, prefix=f".{path.name}.", delete=False) as handle:
+            temporary = Path(handle.name)
+            writer = csv.DictWriter(handle, fieldnames=columns)
+            writer.writeheader()
+            writer.writerows(records)
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def create_dataset(count=1000, customer_count=300, account_count=450,
-                   seed=42, output_dir=Path("data"), include_r001=False, include_r003=False):
+                   seed=42, output_dir=Path("data"), include_r001=False, include_r003=False,
+                   include_r004=False):
     """Write customers, accounts, transactions and seeded-scenario CSVs.
 
     One intentionally planted R002 scenario contains five outbound transfers
     from the same account over forty minutes. include_r001 optionally reserves
     six records for five CAD 100 historical transfers and a CAD 5,000 trigger.
     include_r003 optionally reserves a CAD 10,000 receipt and CAD 8,500 transfer.
+    include_r004 reserves five US-destination CAD 1,000 wires and one new
+    JP-destination CAD 3,000 wire. Amounts remain CAD; no FX conversion is used.
     All data are synthetic. Default output is unchanged by the optional seed.
     """
     if count < 5 or customer_count < 1 or account_count < customer_count:
         raise ValueError("Require transactions >= 5 and accounts >= customers >= 1")
-    reserved = 5 + (6 if include_r001 else 0) + (2 if include_r003 else 0)
+    reserved = 5 + (6 if include_r001 else 0) + (2 if include_r003 else 0) + (6 if include_r004 else 0)
     if count < reserved:
         raise ValueError(f"Selected seeded scenarios require transactions >= {reserved}")
 
@@ -91,6 +105,9 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
     r003_account = f"A{min(3, account_count):05d}"
     r003_start = datetime(2026, 3, 10, 9, 0)
     r003_end = r003_start + timedelta(hours=6)
+    r004_account = f"A{min(4, account_count):05d}"
+    r004_start = START + timedelta(days=10, hours=12)
+    r004_trigger_time = r004_start + timedelta(days=5)
     for _ in range(count - reserved):
         kind = rng.choices(TRANSACTION_TYPES, weights=TYPE_WEIGHTS)[0]
         direction = ("IN" if kind in ("DIRECT_DEPOSIT", "CASH_DEPOSIT")
@@ -109,6 +126,9 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
         if include_r003 and account_id == r003_account and r003_start - timedelta(hours=24) <= happened <= r003_end:
             # Isolate the demonstration pair from competing receipts/transfers.
             kind, direction, country = "BILL_PAYMENT", "OUT", "CA"
+        if include_r004 and account_id == r004_account and happened <= r004_trigger_time and kind == "WIRE":
+            # Keep the optional account's initial outbound wire baseline exact.
+            direction = "IN"
         transactions.append({
             "account_id": account_id,
             "transaction_time": timestamp(happened),
@@ -163,6 +183,20 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
             r003_transactions.append(record)
             transactions.append(record)
 
+    r004_transactions = []
+    if include_r004:
+        for day in range(6):
+            record = {
+                "account_id": r004_account,
+                "transaction_time": timestamp(r004_start + timedelta(days=day)),
+                "amount_cad": "1000.00" if day < 5 else "3000.00",
+                "direction": "OUT", "transaction_type": "WIRE",
+                "counterparty_id": f"CP{5001 + day:05d}",
+                "counterparty_country": "US" if day < 5 else "JP", "status": "POSTED",
+            }
+            r004_transactions.append(record)
+            transactions.append(record)
+
     transactions.sort(key=lambda record: (record["transaction_time"], record["account_id"]))
     for number, record in enumerate(transactions, start=1):
         record["transaction_id"] = f"T{number:07d}"
@@ -186,6 +220,12 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
             "start_time_utc": timestamp(r003_start), "end_time_utc": timestamp(r003_end),
             "transaction_ids": "|".join(record["transaction_id"] for record in r003_transactions),
         })
+    if include_r004:
+        scenarios.append({
+            "scenario_id": "S004", "rule_id": "R004", "account_id": r004_account,
+            "start_time_utc": timestamp(r004_start), "end_time_utc": timestamp(r004_trigger_time),
+            "transaction_ids": "|".join(record["transaction_id"] for record in r004_transactions),
+        })
 
     write_csv(output_dir / "customers.csv", (
         "customer_id", "segment", "onboarding_date"), customers)
@@ -199,7 +239,8 @@ def create_dataset(count=1000, customer_count=300, account_count=450,
     return {"customers": len(customers), "accounts": len(accounts),
             "transactions": len(transactions), "scenario_transactions": len(scenario_ids),
             "r001_scenario_transactions": len(r001_transactions),
-            "r003_scenario_transactions": len(r003_transactions)}
+            "r003_scenario_transactions": len(r003_transactions),
+            "r004_scenario_transactions": len(r004_transactions)}
 
 
 def main():
@@ -211,11 +252,12 @@ def main():
     parser.add_argument("--output-dir", type=Path, default=Path("data"))
     parser.add_argument("--include-r001", action="store_true", help="Include five historical transfers and an unusual-amount trigger")
     parser.add_argument("--include-r003", action="store_true", help="Include a material receipt and rapid outbound transfer")
+    parser.add_argument("--include-r004", action="store_true", help="Include historical wires and a new-destination trigger")
     args = parser.parse_args()
 
     try:
         result = create_dataset(args.transactions, args.customers, args.accounts,
-                                args.seed, args.output_dir, args.include_r001, args.include_r003)
+                                args.seed, args.output_dir, args.include_r001, args.include_r003, args.include_r004)
     except ValueError as error:
         parser.error(str(error))
 
@@ -226,6 +268,8 @@ def main():
         print("Seeded R001 scenario: five CAD 100 historical transfers, then a CAD 5,000 transfer")
     if args.include_r003:
         print("Seeded R003 scenario: CAD 10,000 receipt, then CAD 8,500 transfer six hours later")
+    if args.include_r004:
+        print("Seeded R004 scenario: five CAD 1,000 wires to US, then a CAD 3,000 wire to JP")
 
 
 if __name__ == "__main__":

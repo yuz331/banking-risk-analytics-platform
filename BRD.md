@@ -1,10 +1,10 @@
 # Business Requirements Document (BRD)
 
 **Project:** Banking Transaction Monitoring & Risk Analytics Platform  
-**Version:** 0.5 (R003 implementation update)
+**Version:** 0.6 (Four-rule implementation update)
 **Date:** October 11, 2026  
 **Project type:** Independent portfolio project — educational prototype  
-**Status:** Partially implemented — generation, SQLite, SQL exploration and R001/R002/R003 alerts complete; R004, review workflow and dashboard pending
+**Status:** Phases 1–3 implemented — generation, SQLite, SQL exploration and R001–R004 alerts complete; dashboard and review workflow pending
 
 ## 1. Business Problem
 
@@ -80,7 +80,7 @@ These are **illustrative project parameters**, not thresholds adopted by FINTRAC
 | R001 | Transaction > 4x account historical median **and** > CAD 2,000. |
 | R002 | At least 5 outgoing transfers within 60 minutes for the same account. |
 | R003 | Posted receipt >=CAD 5,000 followed strictly later by one outbound transfer >=80% of that receipt within 24 hours; one-to-one latest-qualifying matching. |
-| R004 | International transfer with unusual destination/frequency/size versus available account history. Detailed threshold to be defined during implementation. |
+| R004 | Posted outbound non-CA wire >CAD 2,000, with >=5 prior outbound wires in 90 days, and a new destination in that window OR amount >4x wire-history median. Frequency change detection is deferred. |
 
 Alerts are indicators for **human review**, not proof of wrongdoing. The first release should de-duplicate repeated hits associated with the same event. Rule thresholds should be configurable and documented.
 
@@ -135,7 +135,7 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 ## 12. Open Questions (To Resolve During Build)
 
 - R003's incoming floor and outbound proportion are resolved in section 16; future expansion to aggregated outflows remains open.
-- How should accounts with little historical transaction data be handled by R004? R001's minimum-history treatment is resolved in section 15.
+- R001/R004 minimum-history treatment is resolved in sections 15/17; dashboard display of skipped assessments remains to be designed.
 - What rules will group multiple triggering transactions into a single alert event?
 - Should reviewing an alert lock a copy of the original supporting transactions?
 
@@ -230,3 +230,31 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
   R002 1, R003 2 alerts; R003 ran in approximately 0.28s. All planted scenarios
   matched evidence. Full-dataset independent R003 pairing matched both events;
   all three reruns produced zero new alerts. See `docs/R003_rule_spec.md`.
+
+## 17. Phase 3 Progress — R004 and four-rule completion, October 11, 2026
+
+- R004 v1 evaluates same-account POSTED outbound non-CA WIRE candidates >CAD 2,000
+  against >=5 previous POSTED outbound wires in 90 days. Domestic wires contribute
+  to the baseline. Interval [candidate time minus 90 days, candidate time) excludes
+  the entire current timestamp batch and future records. Insufficient history is
+  counted and skipped, not classified as safe.
+- Either destination absent from that window OR amount >4x its wire median triggers
+  one alert; both signals share one alert. Exact integer comparisons preserve
+  half-cent medians. Thresholds/history parameters are configurable. Cross-border
+  frequency change detection is deferred; novelty is not a country risk rating.
+- Details retain trigger ID/country, history count/times, exact median, known
+  countries and reason codes. Evidence includes all baseline wires plus the trigger.
+  One signal scores 60/MEDIUM; both score 80/HIGH. These are teaching heuristics.
+- Optional `--include-r004` seeds five CAD 1,000 wires to US followed by CAD 3,000
+  to JP. Previous generator variants remain unchanged. Each CSV now writes to a
+  temporary file and replaces its target only after a complete successful write;
+  this protects individual files, not an entire multi-file dataset transaction.
+- FR-03/FR-04/FR-05 are implemented for all four rules, with positive/negative tests,
+  deterministic deduplication and persistent evidence. FR-06 has CLI filters and
+  drill-down; the dashboard, FR-07 review workflow, FR-08 trends UI and FR-09 export
+  remain pending. MVP completion still requires those later-phase deliverables.
+- All 70 tests passed. Seed-42 50,000-row all-scenario snapshot: R001 277, R002 1,
+  R003 2, R004 2 alerts. All four planted scenarios matched evidence; all repeated
+  rules added zero alerts. All 604 R004 candidates were independently assessed.
+  Exact baseline/reason/evidence and database integrity checks passed. See
+  `docs/R004_rule_spec.md` for definitions, limitations and recorded timings.

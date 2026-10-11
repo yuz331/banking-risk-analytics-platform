@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from generate_data import create_dataset
+from generate_data import create_dataset, write_csv
 
 
 def load(path):
@@ -16,6 +16,17 @@ def load(path):
 
 
 class GeneratorTests(unittest.TestCase):
+    def test_failed_csv_write_preserves_existing_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            path = folder / "records.csv"
+            path.write_text("id\noriginal\n", encoding="utf-8")
+            before = path.read_bytes()
+            with self.assertRaises(ValueError):
+                write_csv(path, ("id",), [{"id": "first"}, {"id": "second", "unexpected": "fails"}])
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(list(folder.iterdir()), [path])
+
     def test_data_and_scenario(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp)

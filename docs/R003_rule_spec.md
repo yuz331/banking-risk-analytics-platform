@@ -141,4 +141,5 @@ domestic bill payments, isolating the demonstration from competing receipts and
 outgoings. The generator never changes existing databases. Scenario CSV labels
 are test evidence and are not used by detection.
 
-R004, dashboard and analyst review workflow remain pending.
+This records the R003 milestone. R004 is now implemented (see `R004_rule_spec.md`),
+and the current suite has 70 passing tests. Dashboard and review workflow remain pending.

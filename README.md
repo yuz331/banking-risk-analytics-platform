@@ -11,7 +11,8 @@ An independent educational portfolio project showcasing banking transaction data
 - [x] Phase 3 — R002 high-velocity detection, persisted alerts and evidence
 - [x] Phase 3 — R001 unusual amount detection and historical baseline evidence
 - [x] Phase 3 — R003 rapid incoming/outgoing funds and one-to-one evidence pairs
-- [ ] Phase 3 — four explainable risk detection rules
+- [x] Phase 3 — R004 cross-border destination/amount detection
+- [x] Phase 3 — four configurable explainable risk detection rules
 - [ ] Phase 4 — Streamlit dashboard, case review and UAT
 
 ## Phase 1: Run the generator
@@ -40,7 +41,7 @@ Use `--seed 42` (default) to reproduce the same dataset, or provide a different 
 
 All dates and times in CSV files are illustrative and stored in UTC. `amount_cad` is formatted with two decimal places. The artificial customer and account identifiers do not identify real people.
 
-Generated CSVs under `data/` are ignored by Git. The scenario labels provide **test input**, not model performance evidence. R001, R002 and R003 detection are implemented below; R004 remains pending. The rules use illustrative prototype criteria, not regulatory reporting thresholds.
+Generated CSVs under `data/` are ignored by Git. The scenario labels provide **test input**, not model performance evidence. All four rules are implemented below. The rules use illustrative prototype criteria, not regulatory reporting thresholds.
 
 ## Phase 2: Load SQLite and explore activity
 
@@ -70,8 +71,10 @@ python3 src/load_database.py --data-dir data/seed7 --db data/seed7.db
 python3 src/analyze_data.py --db data/seed7.db --query overview
 ```
 
-The generator overwrites CSVs in its chosen output folder. Choose a new output
-folder when keeping previous CSV snapshots. Generated CSVs under `data/` and
+The generator replaces each CSV only after that file's full write succeeds;
+a failed CSV write leaves the previous file intact. This is per-file protection,
+not a transaction across all four files. Choose a new output folder when keeping
+previous snapshots and import after generation finishes. Generated CSVs under `data/` and
 local SQLite files/sidecars are ignored by Git. If you choose a CSV output folder
 outside `data/`, add it to `.gitignore` before committing.
 
@@ -163,7 +166,7 @@ MEDIUM/HIGH alerts and its score is not a probability or bank-approved risk rati
 All **26 automated tests passed** after R002 implementation. See
 `docs/R002_rule_spec.md` for event grouping, parameter semantics, limitations and
 validation evidence. This records the R002 milestone; the current suite includes
-53 passing tests after R003 below.
+70 passing tests after R004 below.
 
 ## Phase 3, second rule: R001 unusual amount
 
@@ -183,7 +186,7 @@ python3 src/show_alerts.py --rule R001 --with-evidence --limit 5
 Defaults and overrides: `min_history=5`, `lookback_days=30`, `multiplier=4`,
 `minimum_amount_cents=200000`, configured in `config/rules.json`.
 For example, `--rule R001 --min-history 10 --lookback-days 60` requests a longer
-history and more observations. `--rule all` runs all three implemented rules; with no
+history and more observations. `--rule all` runs all four implemented rules; with no
 `--rule`, the CLI still runs R002 for compatibility. Each rule saves in its own
 transaction; all selected configurations are validated before detection starts.
 
@@ -253,10 +256,10 @@ python3 src/show_alerts.py --rule R003 --with-evidence
 Defaults in `config/rules.json`: `minimum_inbound_cents=500000`,
 `outbound_percentage=80`, `window_hours=24`. For example:
 `python3 src/detect_risks.py --rule R003 --outbound-percentage 90 --window-hours 12`.
-`--rule all` now runs R001/R002/R003, with per-rule transactions and prevalidation
+`--rule all` runs R001/R002/R003/R004, with per-rule transactions and prevalidation
 of all selected thresholds. The no-argument default remains R002.
 
-### Demonstrate all three rules
+### Reproduce the three-rule milestone
 
 Use a separate snapshot for the new optional R003 scenario:
 
@@ -297,6 +300,82 @@ across all three rules. An independent full-dataset oracle matched both R003 pai
 Greedy matching does not enumerate every possible pairing or maximize pair count;
 multiple deposits, pooled funds and aggregated outflows remain outside R003 v1.
 Synthetic counts and runtime are not detection accuracy or production capacity.
-See `docs/R003_rule_spec.md`. Next: R004 unusual cross-border activity.
+See `docs/R003_rule_spec.md`. These counts record the R003 milestone before R004;
+the complete four-rule snapshot is described next.
+
+## Phase 3, fourth rule: R004 unusual cross-border wires
+
+R004 evaluates POSTED outbound WIRE transactions whose counterparty country is
+not CA. A candidate must exceed **CAD 2,000** and have at least **5 prior posted
+outbound wires** in the preceding **90 days**. The prior wire baseline includes
+domestic wires and excludes current, same-timestamp and future records.
+
+Once those conditions hold, either signal triggers one alert:
+
+- `NEW_DESTINATION`: destination is absent from the prior wire-history window.
+- `UNUSUAL_AMOUNT`: amount strictly exceeds 4x that history's median.
+
+Both signals can belong to the same alert. One signal scores 60 (MEDIUM); both
+score 80 (HIGH), as an illustrative heuristic. Novelty is relative to this account
+and window, not a country risk rating. R004 v1 does not detect cross-border
+frequency changes. All monetary values remain CAD.
+
+```bash
+python3 src/detect_risks.py --rule R004
+python3 src/show_alerts.py --rule R004 --with-evidence --limit 5
+```
+
+Defaults live in `config/rules.json`: `min_wire_history=5`, `wire_lookback_days=90`,
+`wire_multiplier=4`, `minimum_cross_border_cents=200000`. All are configurable;
+for example, add `--wire-lookback-days 30 --min-wire-history 3` to a selected R004
+run. Each alert saves the trigger ID/country, exact median, history count/times,
+known countries, reason codes and **all** baseline transaction IDs plus the trigger.
+Insufficient history is counted and skipped; skipping is not a safe classification.
+
+### Demonstrate all four rules
+
+Choose a new CSV folder/database to preserve earlier snapshots:
+
+```bash
+python3 src/generate_data.py --transactions 50000 --include-r001 --include-r003 --include-r004 --output-dir data/allrulesdemo
+python3 src/load_database.py --data-dir data/allrulesdemo --db data/allrulesdemo.db
+python3 src/detect_risks.py --db data/allrulesdemo.db --rule all
+python3 src/show_alerts.py --db data/allrulesdemo.db --rule R004 --account A00004 --with-evidence
+```
+
+The R004 seed reserves five CAD 1,000 wires to US on separate days, then a CAD
+3,000 wire to JP on A00004 (highest existing account if fewer than four).
+It triggers NEW_DESTINATION while staying below the 4x median threshold. Random
+outbound wires on that account through the seed trigger become inbound to keep
+the teaching baseline exact. The flag reserves six rows within the total: at least
+11 transactions with R004 alone, or 19 with all optional flags. Earlier generator
+variants remain byte-identical without the flag.
+
+### Four-rule validation evidence
+
+All **70 automated tests passed**: 16 R004 tests plus prior rules, ingestion,
+generation and a failed-write test proving an existing CSV remains intact.
+R004 coverage includes destination/amount OR logic, signal deduplication, domestic
+baseline, strict equality, exact half-cent medians, history expiry, timestamp
+leakage, exclusions, persistence and 100 random datasets checked by an independent oracle.
+
+On the seed-42 50,000-row all-scenario snapshot:
+
+| Rule | Saved alerts | First detection runtime |
+| --- | --- | --- |
+| R001 | 277 | Approximately 0.38 s |
+| R002 | 1 | Approximately 0.24 s |
+| R003 | 2 | Approximately 0.43 s |
+| R004 | 2 | Approximately 0.19 s |
+
+All four seeded scenarios matched stored evidence, and repeating all rules added
+zero alerts. All 604 R004 candidates were independently assessed: 584 lacked
+five prior wires; both alerts' history, medians, countries and reason codes matched.
+An unchanged re-import preserved all 282 alerts and their evidence. Database
+integrity/foreign-key checks passed. Timing varies with the development environment;
+these are observed runs, not production throughput or detection accuracy.
+
+See `docs/R004_rule_spec.md`. Phase 3 is complete; next is the Streamlit dashboard
+with alert filtering, transaction drill-down and persistent analyst review notes.
 
 See `BRD.md` for the planned business requirements.

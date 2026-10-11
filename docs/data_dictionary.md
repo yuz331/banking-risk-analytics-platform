@@ -51,8 +51,8 @@ simply exclude records whose status is not POSTED.
 | alerts | alert_id | Deterministic primary key from rule, version, parameters, account and ordered evidence IDs |
 | alerts | rule_id, rule_version, parameters_json | Detection rule and exact thresholds used |
 | alerts | account_id | Foreign key to accounts |
-| alerts | event_start_utc, event_end_utc | R002: event first/last evidence times; R001: trigger time; R003: receipt/outgoing times |
-| alerts | peak_count, evidence_count | R002: maximum rolling count; R001: 1 trigger; R003: pair size 2. Evidence count includes all linked rows |
+| alerts | event_start_utc, event_end_utc | R002: event first/last evidence times; R001/R004: trigger time; R003: receipt/outgoing times |
+| alerts | peak_count, evidence_count | R002: maximum rolling count; R001/R004: 1 trigger; R003: pair size 2. Evidence count includes all linked rows |
 | alerts | score, priority | 0–100 illustrative score; LOW/MEDIUM/HIGH |
 | alerts | created_time_utc | Actual detection/save time in UTC |
 | alerts | status | NEW, IN_REVIEW or CLOSED; detection initializes NEW and preserves existing status |
@@ -71,4 +71,8 @@ include the trigger and all baseline rows. R003 details contain inbound_transact
 outbound_transaction_id, inbound_amount_cents, outbound_amount_cents and elapsed_seconds;
 its two evidence records are one same-account incoming/outgoing pair. A transaction
 is paired once within an R003 configuration, but can be evidence for another rule
-or configuration. Review notes, dispositions and a review UI are not implemented yet.
+or configuration. R004 details contain trigger_transaction_id, trigger_country,
+history_count, history_start_utc, history_end_utc, median_twice_cents, known_countries
+and reasons (NEW_DESTINATION and/or UNUSUAL_AMOUNT). Its evidence includes domestic
+and foreign prior outbound wires plus the foreign trigger. Review notes,
+dispositions and a review UI are not implemented yet.

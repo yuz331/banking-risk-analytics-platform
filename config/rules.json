@@ -13,5 +13,11 @@
     "minimum_inbound_cents": 500000,
     "outbound_percentage": 80,
     "window_hours": 24
+  },
+  "R004": {
+    "min_wire_history": 5,
+    "wire_lookback_days": 90,
+    "wire_multiplier": 4,
+    "minimum_cross_border_cents": 200000
   }
 }
