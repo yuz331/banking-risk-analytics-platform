@@ -151,6 +151,37 @@ Generated CSVs, SQLite files, launcher settings/locks and temporary default-data
 snapshots are ignored by Git. The launcher does not modify a different existing
 snapshot or introduce a hosted service.
 
+## Continuous integration — October 12, 2026
+
+Workflow: [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+Triggers: push, pull request and manual dispatch. Matrix:
+
+| Runner | Python | Checks |
+| --- | --- | --- |
+| Ubuntu | 3.10 | Full suite, fresh 50,000-row demo, repeat preparation, clean checkout |
+| Ubuntu | 3.12 | Full suite, fresh 50,000-row demo, repeat preparation, clean checkout |
+| Windows | 3.12 | Full suite, fresh 50,000-row demo, repeat preparation, clean checkout |
+
+The suite runs with all dashboard packages installed. A failure, error, empty
+discovery or skipped test fails CI. Job summaries show discovered/run counts and
+failure/error/skip totals; the existing 95 tests are discovered dynamically.
+The workflow runs the preparation-only CLI twice and checks that generated data
+remains ignored. It does not upload CSVs, databases or artifacts and does not
+launch a server or perform OS browser automation.
+
+Before publication, workflow YAML/trigger/matrix/action revisions and Bash syntax
+were checked locally. The actual test/preparation commands ran successfully on
+Python 3.12: 95 tests, zero skips; 282 first-run alerts, zero additional repeat
+alerts; unchanged checkout state. In a separate environment without dashboard
+packages, all three UI tests were skipped and the CI command correctly exited
+with failure. The database test fixture now explicitly closes its connection
+before temporary-file cleanup for Windows compatibility.
+
+The [Actions history](https://github.com/yuz331/banking-risk-analytics-platform/actions/workflows/ci.yml)
+records the result for each commit and runner. Use the relevant run's commit SHA
+and job logs as cloud execution evidence; the earlier 95-test local record and
+browser/restart checks remain the separate evidence described above.
+
 ## Practical limitations
 
 - Local app only; no hosted service, user authentication or authenticated audit log.

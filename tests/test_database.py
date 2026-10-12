@@ -5,6 +5,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -37,7 +38,7 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual((result["customers"], result["accounts"], result["transactions"]), (30, 50, 1000))
         self.assertTrue(result["imported"])
         self.assertFalse(load_dataset(self.folder, self.db)["imported"])
-        with sqlite3.connect(self.db) as connection:
+        with closing(sqlite3.connect(self.db)) as connection, connection:
             self.assertEqual(connection.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM transactions").fetchone()[0], 1000)
             connection.execute("PRAGMA foreign_keys = ON")

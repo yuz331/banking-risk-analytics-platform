@@ -1,5 +1,7 @@
 # Banking Transaction Monitoring & Risk Analytics Platform
 
+[![CI](https://github.com/yuz331/banking-risk-analytics-platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yuz331/banking-risk-analytics-platform/actions/workflows/ci.yml)
+
 An independent educational portfolio project developed with AI assistance, showcasing banking transaction data, SQL, Python, and risk monitoring requirements. **This is a prototype, not a banking or regulatory reporting system. All generated records are synthetic.**
 
 ## Portfolio materials
@@ -26,6 +28,7 @@ also links the [architecture](docs/portfolio/architecture.md),
 - [x] Phase 3 — four configurable explainable risk detection rules
 - [x] Phase 4 — Streamlit dashboard, persistent case review and developer UAT
 - [x] One-command demo preparation and dashboard launch with safe snapshot reuse
+- [x] GitHub Actions CI for full tests and fresh/repeated demo preparation
 
 ## Open the dashboard
 
@@ -155,6 +158,29 @@ review-preserving reuse, safe refusal of changed/unowned/incomplete snapshots,
 configuration validation, empty/corrupt database refusal, failure cleanup,
 preparation locks, missing packages, occupied ports and immediate port reuse
 after shutdown. See `docs/UAT.md` for the actual CLI/browser restart check.
+
+## Automated checks on GitHub
+
+The [CI workflow](.github/workflows/ci.yml) runs on pushes, pull requests and
+manual **Run workflow** requests in
+[GitHub Actions](https://github.com/yuz331/banking-risk-analytics-platform/actions/workflows/ci.yml).
+Its matrix covers Ubuntu with Python 3.10/3.12 and Windows with Python 3.12.
+
+Each job installs `requirements.txt`, checks dependency consistency and runs the
+complete unittest suite. Skipped tests fail CI, so missing Streamlit dependencies
+cannot silently omit dashboard checks. Results appear in each job's summary and
+logs; the badge above shows the latest `main` status.
+
+Each job also runs `run_demo.py --prepare-only` twice for a fresh 50,000-row
+snapshot and its unchanged reuse. Generated CSVs/databases stay on the temporary
+runner and are neither committed nor uploaded as artifacts. CI verifies that the
+checkout remains unchanged. The workflow has read-only repository permissions,
+pinned action revisions, dependency download caching and a 15-minute job limit.
+
+CI uses Streamlit AppTest and prepares data without opening a server or browser.
+The earlier real-browser checks remain separate developer validation. Reproduce
+the test suite locally with the command above after installing dependencies;
+the ordinary local command permits optional UI skips when packages are absent.
 
 ## Phase 1: Run the generator
 

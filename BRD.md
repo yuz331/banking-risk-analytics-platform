@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD)
 
 **Project:** Banking Transaction Monitoring & Risk Analytics Platform  
-**Version:** 0.9 (One-command local demo)
+**Version:** 1.0 (Continuous integration)
 **Date:** October 12, 2026
 **Project type:** Independent portfolio project — educational prototype  
 **Status:** Phases 1–4 implemented — local educational MVP with developer validation; no external bank stakeholder approval
@@ -317,3 +317,20 @@ The case study, architecture and presentation material are in `docs/portfolio/`.
 - 95 automated tests passed, including 16 launcher checks. The actual CLI/browser
   validation and review-preserving restart are recorded in `docs/UAT.md`. This
   improves local reproducibility; no hosted deployment is introduced.
+
+## 21. Continuous Integration — October 12, 2026
+
+- GitHub Actions runs the complete suite on pushes, pull requests and manual
+  requests. The matrix covers Ubuntu/Python 3.10, Ubuntu/Python 3.12 and
+  Windows/Python 3.12. Each job installs the pinned dashboard dependencies;
+  unexpected skipped tests fail the job.
+- Every job prepares a fresh 50,000-row four-scenario demo, reuses it, and checks
+  that tests/preparation have left no tracked or unignored repository changes.
+  Generated snapshots exist only on the temporary runner and are not published
+  as repository files or downloadable workflow artifacts.
+- Read-only repository permissions, pinned action revisions, dependency caching,
+  cancellation of superseded runs and bounded job duration support routine
+  maintenance. Test counts and failures are visible in job summaries/logs.
+- CI automates developer checks. It uses AppTest rather than a real browser and
+  does not deploy the dashboard or enforce a protected-branch merge policy.
+  Current execution evidence is available in the repository's Actions tab.

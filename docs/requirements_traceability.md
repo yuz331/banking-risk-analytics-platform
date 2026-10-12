@@ -22,10 +22,10 @@ do not claim actual bank stakeholder acceptance or production compliance.
 | --- | --- | --- |
 | Usability | Filtered queue, evidence drill-down, review form and readable desktop/narrow screenshots | Developer/browser checks, not actual analyst usability research |
 | Explainability | Saved thresholds, rule version, narrative and evidence links | Pattern explanations require real-world context |
-| Reliability | Deterministic identities, unchanged repeat checks, atomic writes and [review-preserving demo reuse](../tests/test_run_demo.py) | Immutable snapshot workflow; no live incremental ingestion |
+| Reliability | Deterministic identities, unchanged repeat checks, atomic writes, [review-preserving demo reuse](../tests/test_run_demo.py) and [CI checks](../.github/workflows/ci.yml) | Immutable snapshot workflow; no live incremental ingestion; CI does not enforce branch protection |
 | Reproducibility | Fixed seed, labeled scenarios, pinned dependencies and [one-command launcher](../run_demo.py) | Install dashboard dependencies once; a new clone prepares its own local snapshot |
 | Performance measurement | Recorded 50,000-row import/detection runs | Observed development timings, including variability; not capacity benchmarks |
-| Maintainability | Separate generation, import, rule, storage, read and UI modules | No production deployment or migration framework |
+| Maintainability | Separate generation, import, rule, storage, read and UI modules; automated tests on pushes/PRs | No production deployment or migration framework |
 
 ## Follow one requirement during an interview
 
