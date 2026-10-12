@@ -1,6 +1,17 @@
 # Banking Transaction Monitoring & Risk Analytics Platform
 
-An independent educational portfolio project showcasing banking transaction data, SQL, Python, and risk monitoring requirements. **This is a prototype, not a banking or regulatory reporting system. All generated records are synthetic.**
+An independent educational portfolio project developed with AI assistance, showcasing banking transaction data, SQL, Python, and risk monitoring requirements. **This is a prototype, not a banking or regulatory reporting system. All generated records are synthetic.**
+
+## Portfolio materials
+
+Start with the [case study](docs/portfolio/case_study.md) for the business problem,
+implemented workflow and development evidence. The [portfolio guide](docs/portfolio/README.md)
+also links the [architecture](docs/portfolio/architecture.md),
+[five-minute demo](docs/portfolio/demo_script.md),
+[interview Q&A](docs/portfolio/interview_qa.md),
+[resume wording](docs/portfolio/resume_project.md),
+[simulated user stories](docs/user_stories.md) and
+[requirements traceability](docs/requirements_traceability.md).
 
 ## Progress
 

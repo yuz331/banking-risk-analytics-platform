@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD)
 
 **Project:** Banking Transaction Monitoring & Risk Analytics Platform  
-**Version:** 0.7 (Dashboard and review implementation)
+**Version:** 0.8 (Portfolio and traceability documentation)
 **Date:** October 12, 2026
 **Project type:** Independent portfolio project — educational prototype  
 **Status:** Phases 1–4 implemented — local educational MVP with developer validation; no external bank stakeholder approval
@@ -133,8 +133,9 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 - `README.md` — setup instructions and portfolio overview.
 
 Implementation note: the BRD remains at repository root. `docs/UAT.md`, rule
-specifications and data dictionary document the implemented workflows and checks;
-standalone simulated user stories may be added for portfolio presentation later.
+specifications, data dictionary, `docs/user_stories.md` and
+`docs/requirements_traceability.md` document the implemented workflows and checks.
+The case study, architecture and presentation material are in `docs/portfolio/`.
 
 ## 12. Open Questions (To Resolve During Build)
 
@@ -285,3 +286,15 @@ standalone simulated user stories may be added for portfolio presentation later.
   A 50,000-row/282-alert app smoke test, fresh-session persistence, real server
   health, Chromium rendering/filtering and desktop/narrow visual inspection passed.
   See `docs/UAT.md` for definitions, tests and practical limitations.
+
+## 19. Portfolio Documentation — October 12, 2026
+
+- Case study, architecture/module map, five-minute demonstration, interview Q&A
+  and project resume wording are available in `docs/portfolio/`.
+- Simulated user stories and requirement-to-code/test traceability link the BRD
+  to implemented local behavior and recorded acceptance evidence.
+- Project ownership is presented as independent, AI-assisted development using
+  synthetic data. The documents distinguish functional validation from unmeasured
+  fraud accuracy, business savings and production experience.
+- This update adds documentation only; detector/UI behavior and the previously
+  verified 79-test implementation are unchanged.
