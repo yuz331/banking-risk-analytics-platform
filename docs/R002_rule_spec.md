@@ -95,7 +95,8 @@ Runtime depends on environment. Synthetic records and one planted event do not
 estimate false-positive/false-negative rates or production capacity. This section
 records the R002 milestone before R001 was added. R001 is now implemented (see
 `R001_rule_spec.md`), R003 and R004 are implemented (see their rule specs).
-The dashboard remains pending. Current suite: 70 passing tests; the original
+The Phase 4 dashboard/review workflow is implemented (see `UAT.md`). Current suite:
+79 passing tests; the original
 default generator output and saved R002 IDs remain unchanged.
 
 ## Reproduce

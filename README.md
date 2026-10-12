@@ -13,7 +13,88 @@ An independent educational portfolio project showcasing banking transaction data
 - [x] Phase 3 — R003 rapid incoming/outgoing funds and one-to-one evidence pairs
 - [x] Phase 3 — R004 cross-border destination/amount detection
 - [x] Phase 3 — four configurable explainable risk detection rules
-- [ ] Phase 4 — Streamlit dashboard, case review and UAT
+- [x] Phase 4 — Streamlit dashboard, persistent case review and developer UAT
+
+## Open the dashboard
+
+Python 3.10+; run from the repository root. The generator/detectors still use the
+standard library. The dashboard adds the pinned packages in `requirements.txt`.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+python3 -m streamlit run app.py --server.address 127.0.0.1
+```
+
+Open `http://localhost:8501`. The default snapshot is `data/banking.db`; choose
+another existing database in the sidebar. For a fresh full-scenario demo:
+
+```bash
+python3 src/generate_data.py --transactions 50000 --include-r001 --include-r003 --include-r004 --output-dir data/demo
+python3 src/load_database.py --data-dir data/demo --db data/demo.db
+python3 src/detect_risks.py --db data/demo.db --rule all
+```
+
+Enter `data/demo.db` in the dashboard's Database path field. Generated CSVs and
+databases are local; a clone alone does not contain a ready-made snapshot.
+
+![Dashboard overview — real synthetic-data app screenshot](docs/screenshots/dashboard_overview.jpg)
+
+The overview shows full-snapshot posted volume, saved/open/closed alerts, daily
+transaction activity and alerts by rule/status. Sidebar filters affect the **alert
+queue and its page export**, not the overview. Cards/charts have separate labels
+so a filtered queue is not mistaken for a filtered transaction denominator.
+
+The queue supports rule, priority, status and exact account ID filtering, with
+25 rows per page. Select an alert to inspect its explanation, thresholds,
+rule-specific details and all source-transaction evidence. Monetary evidence is
+shown in CAD; underlying values remain exact integer cents.
+
+### Record a review
+
+Provide a local reviewer alias and notes, then select:
+
+| Review outcome | Saved alert status | Meaning |
+| --- | --- | --- |
+| Continue review | IN_REVIEW | Work remains open |
+| Close — no concern found | CLOSED | Local educational disposition |
+| Close — recommend escalation | CLOSED | Local recommendation, not an external message/report |
+
+Each save appends a review record and updates status atomically. Earlier records
+remain visible after refresh or restarting the app. A closed alert can be reopened
+by selecting Continue review. A stale form cannot overwrite a newer review;
+use Refresh data to read the latest history before saving again.
+
+![Alert evidence and local review form](docs/screenshots/alert_review.jpg)
+
+Reviewer aliases are not authenticated identities. This local prototype does not
+send escalation messages or perform regulatory reporting. Detection/re-import of
+unchanged inputs preserves reviews and statuses. CSV download exports exactly the
+visible queue page; it is not a full-snapshot export.
+
+### Phase 4 validation
+
+On October 12, 2026, **79 automated tests passed**, including nine dashboard/review
+checks. Streamlit AppTest exercised charts, filters, evidence, review save, stale
+form rejection, missing/empty states and fresh-session persistence. A real local
+server returned a healthy response, and Chromium rendered the charts, filtered
+evidence and review screen. Desktop (1440px) and narrow (390px) layouts were
+visually inspected; screenshot files are in `docs/screenshots/`.
+
+On the 50,000-row/282-alert snapshot, a demonstration review changed open alerts
+from 282 to 281 and closed alerts from 0 to 1; it remained saved in a new app
+session. Screenshots show that reviewed **copy**, not a change to the pristine
+detector validation snapshot. Daily monetary/count totals and alert breakdowns
+reconcile to the database. See `docs/UAT.md` for metric definitions and test scope.
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Install requirements first to include the three Streamlit UI tests. Without those
+packages, UI tests are skipped and the standard-library core tests can still run.
+This is local app code, not a hosted deployment or bank-stakeholder acceptance.
 
 ## Phase 1: Run the generator
 
@@ -157,7 +238,7 @@ python3 src/show_alerts.py --account A00001 --with-evidence
 Alerts retain the rule version and parameters used. Changed configurations produce
 separate results; older alerts remain visible. Identical snapshot/configuration
 reruns retain IDs, creation timestamps, status and evidence. The inspector is
-read-only; editing statuses and saving review notes through a UI remain pending.
+read-only. The dashboard above now provides status changes and saved review notes.
 
 R002's illustrative score is `min(100, 60 + 10 * (peak_count - min_count))`.
 Scores <40 map to LOW, 40–69 to MEDIUM, and 70–100 to HIGH. This rule produces
@@ -166,7 +247,7 @@ MEDIUM/HIGH alerts and its score is not a probability or bank-approved risk rati
 All **26 automated tests passed** after R002 implementation. See
 `docs/R002_rule_spec.md` for event grouping, parameter semantics, limitations and
 validation evidence. This records the R002 milestone; the current suite includes
-70 passing tests after R004 below.
+79 passing tests after Phase 4 above.
 
 ## Phase 3, second rule: R001 unusual amount
 
@@ -375,7 +456,7 @@ An unchanged re-import preserved all 282 alerts and their evidence. Database
 integrity/foreign-key checks passed. Timing varies with the development environment;
 these are observed runs, not production throughput or detection accuracy.
 
-See `docs/R004_rule_spec.md`. Phase 3 is complete; next is the Streamlit dashboard
-with alert filtering, transaction drill-down and persistent analyst review notes.
+See `docs/R004_rule_spec.md`. This records the Phase 3 milestone. The Phase 4
+dashboard, review workflow and page export are now implemented above.
 
 See `BRD.md` for the planned business requirements.

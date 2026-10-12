@@ -74,5 +74,26 @@ is paired once within an R003 configuration, but can be evidence for another rul
 or configuration. R004 details contain trigger_transaction_id, trigger_country,
 history_count, history_start_utc, history_end_utc, median_twice_cents, known_countries
 and reasons (NEW_DESTINATION and/or UNUSUAL_AMOUNT). Its evidence includes domestic
-and foreign prior outbound wires plus the foreign trigger. Review notes,
-dispositions and a review UI are not implemented yet.
+and foreign prior outbound wires plus the foreign trigger.
+
+## Phase 4 review history
+
+| Field | SQLite type | Meaning / constraints |
+| --- | --- | --- |
+| review_id | TEXT | Unique UUID primary key |
+| alert_id | TEXT | Foreign key to alerts |
+| outcome | TEXT | IN_REVIEW, NO_CONCERN or ESCALATE |
+| reviewer_alias | TEXT | Local label, 1–60 trimmed characters; not authenticated identity |
+| notes | TEXT | Required, 1–2000 trimmed characters |
+| reviewed_time_utc | TEXT | Actual UTC time including microseconds |
+
+The supported save API appends records, never overwrites previous notes, and
+updates status in the same transaction. IN_REVIEW maps to IN_REVIEW; NO_CONCERN
+and ESCALATE map to CLOSED. A new IN_REVIEW outcome can reopen a closed case.
+Revision checks compare the last saved review ID to the form's displayed revision,
+rejecting a stale submission. Review history is ordered newest first by UTC time
+and row ID. Direct database editing is outside the supported workflow; this is not
+an authenticated or tamper-proof audit system.
+
+Overview metrics use all saved alerts/configurations and posted transaction flows.
+Queue filters/export use a separate bounded scope. See `UAT.md` for definitions.

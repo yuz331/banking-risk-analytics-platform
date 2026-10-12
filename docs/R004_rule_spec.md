@@ -134,8 +134,9 @@ These measurements are development observations, not a stable throughput claim.
   country/corridor risk assessments are outside R004 v1.
 - Synthetic counts do not estimate real fraud or false-positive rates. Performance
   needs representative data and separate production engineering work.
-- Four rule implementations are complete. Dashboard, analyst reviews, trend UI
-  and report export remain pending before the full MVP is complete.
+- Four rule implementations are complete. Phase 4 now provides the dashboard,
+  analyst reviews, trend UI and visible queue-page CSV export. Current suite:
+  79 passing tests; see `UAT.md` for the later milestone and remaining limits.
 
 ## Reproduce
 

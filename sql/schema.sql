@@ -68,3 +68,14 @@ CREATE TABLE IF NOT EXISTS alert_details (
     alert_id TEXT PRIMARY KEY NOT NULL REFERENCES alerts(alert_id),
     details_json TEXT NOT NULL
 );
+
+-- Phase 4: append-only review history; reviewer aliases are local labels.
+CREATE TABLE IF NOT EXISTS reviews (
+    review_id TEXT PRIMARY KEY NOT NULL,
+    alert_id TEXT NOT NULL REFERENCES alerts(alert_id),
+    outcome TEXT NOT NULL CHECK (outcome IN ('IN_REVIEW', 'NO_CONCERN', 'ESCALATE')),
+    reviewer_alias TEXT NOT NULL CHECK (length(trim(reviewer_alias)) BETWEEN 1 AND 60),
+    notes TEXT NOT NULL CHECK (length(trim(notes)) BETWEEN 1 AND 2000),
+    reviewed_time_utc TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_alert ON reviews(alert_id, reviewed_time_utc);

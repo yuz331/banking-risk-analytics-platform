@@ -122,5 +122,5 @@ Choose a fresh path if that database contains different CSV input. The optional
 seed reserves six transactions within the requested count; the existing R002 seed
 reserves five. Detection reads only database transactions, not scenario labels.
 This records the R001 milestone. R003 is now implemented (see `R003_rule_spec.md`);
-R004 is implemented too (see `R004_rule_spec.md`); the current suite has 70 passing
-tests. Dashboard and review workflow remain pending.
+R004 is implemented too (see `R004_rule_spec.md`). Phase 4 dashboard/review/page
+export is also implemented; the current suite has 79 passing tests. See `UAT.md`.

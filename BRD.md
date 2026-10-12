@@ -1,10 +1,10 @@
 # Business Requirements Document (BRD)
 
 **Project:** Banking Transaction Monitoring & Risk Analytics Platform  
-**Version:** 0.6 (Four-rule implementation update)
-**Date:** October 11, 2026  
+**Version:** 0.7 (Dashboard and review implementation)
+**Date:** October 12, 2026
 **Project type:** Independent portfolio project — educational prototype  
-**Status:** Phases 1–3 implemented — generation, SQLite, SQL exploration and R001–R004 alerts complete; dashboard and review workflow pending
+**Status:** Phases 1–4 implemented — local educational MVP with developer validation; no external bank stakeholder approval
 
 ## 1. Business Problem
 
@@ -132,6 +132,10 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
 - `docs/BRD.md`, `docs/user_stories.md`, `docs/UAT.md` — project documentation.
 - `README.md` — setup instructions and portfolio overview.
 
+Implementation note: the BRD remains at repository root. `docs/UAT.md`, rule
+specifications and data dictionary document the implemented workflows and checks;
+standalone simulated user stories may be added for portfolio presentation later.
+
 ## 12. Open Questions (To Resolve During Build)
 
 - R003's incoming floor and outbound proportion are resolved in section 16; future expansion to aggregated outflows remains open.
@@ -258,3 +262,26 @@ Use consistent time zones and documented currency assumptions. Transaction IDs m
   rules added zero alerts. All 604 R004 candidates were independently assessed.
   Exact baseline/reason/evidence and database integrity checks passed. See
   `docs/R004_rule_spec.md` for definitions, limitations and recorded timings.
+
+## 18. Phase 4 Progress — October 12, 2026
+
+- `app.py` implements the local Streamlit dashboard with full-snapshot volume,
+  saved/open/closed alerts, daily posted activity and rule/status breakdown.
+  Rule/priority/status/account filters apply to a paginated queue, not global
+  overview cards/charts. All metrics use the existing SQLite snapshot.
+- Alert drill-down shows explanation, parameters, rule details and source evidence.
+  CSV export downloads the visible queue page with its documented bounded scope.
+- `reviews` stores an append-only history through the supported app/API: reviewer
+  alias, notes, outcome and UTC timestamp. Saving atomically updates alert status.
+  IN_REVIEW stays open; NO_CONCERN/ESCALATE close the local case. Escalation sends
+  no messages. Closed cases can be reopened with another IN_REVIEW review.
+- Optimistic revision checks reject stale forms. Existing Phase 3 databases receive
+  additive review schema setup; supported re-import and detection preserve reviews.
+  Aliases are local labels, not authenticated identity or a tamper-proof audit log.
+- FR-06/FR-07/FR-08/FR-09 now have local dashboard, review, chart and page-export
+  implementations. All MVP success criteria have developer evidence, including
+  browser screenshots; institutional/user stakeholder approval is not claimed.
+- 79 automated tests passed (70 existing plus nine review/dashboard checks).
+  A 50,000-row/282-alert app smoke test, fresh-session persistence, real server
+  health, Chromium rendering/filtering and desktop/narrow visual inspection passed.
+  See `docs/UAT.md` for definitions, tests and practical limitations.
