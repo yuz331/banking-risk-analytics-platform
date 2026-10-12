@@ -47,7 +47,8 @@ refresh, detector reruns and a new application session.
 | Reproducible synthetic dataset | 50,000 transactions, 300 customers, 450 accounts |
 | All-scenario seed-42 alerts | R001 277; R002 1; R003 2; R004 2 |
 | Unchanged detection repeat | Zero additional logical alerts across all four rules |
-| Automated validation | 79 passing tests, including boundary, history, persistence and Streamlit interaction checks |
+| Automated validation | 95 passing tests, including boundary, history, persistence, Streamlit interactions and safe demo preparation/reuse |
+| Demo setup | One command prepares all four scenarios, runs the rules and launches the dashboard with the selected database |
 | Browser validation | Real charts and evidence/review controls rendered; desktop and 390px screenshots inspected |
 
 ## Design judgment and limits

@@ -25,15 +25,16 @@ flowchart TB
     Tests -.-> Review
 ```
 
-Detection is invoked from the CLI, not automatically by opening or filtering the
-dashboard. The dashboard reads existing results; its only business write is a
-submitted local review. All selected rule configurations are validated before a
-multi-rule run starts, but each rule commits independently.
+Detection is invoked from the individual CLI or `run_demo.py` before launching
+the dashboard. Opening or filtering the dashboard reads existing results; its
+only business write is a submitted local review. All selected rule configurations
+are validated before a multi-rule run starts, but each rule commits independently.
 
 ## Module map
 
 | Responsibility | Files |
 | --- | --- |
+| Complete demo preparation, safe reuse and local server/browser startup | [run_demo.py](../../run_demo.py) |
 | Synthetic generation and completed-file replacement | [generate_data.py](../../src/generate_data.py) |
 | Shape, keys, dates, money and snapshot validation | [load_database.py](../../src/load_database.py) |
 | Relational schema and SQL activity analysis | [schema.sql](../../sql/schema.sql), [analysis.sql](../../sql/analysis.sql) |
@@ -83,6 +84,10 @@ an alert's account equals every linked transaction's account.
 - Review insert and alert status update share one transaction. The latest saved
   review ID is checked under the write lock before either write occurs.
 - CSV replacement is atomic per completed file, not across the whole dataset.
+- For a fresh launcher demo, generation, import and all four detectors complete
+  in a temporary folder before the folder is renamed to its final destination.
+  Existing launcher snapshots are validated/reused under a preparation lock;
+  each detector still has its own transaction when reusing a snapshot.
 
 The [data dictionary](../data_dictionary.md), [rule specs](../R001_rule_spec.md)
 and [UAT record](../UAT.md) provide more detail. A production design would require

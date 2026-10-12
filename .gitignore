@@ -223,6 +223,11 @@ __marimo__/
 /data/*.csv
 /data/**/*.csv
 
+# Local demo launcher settings, preparation locks and temporary snapshots
+demo-run.json
+*.demo-prepare.lock
+/data/demo-prepare-*/
+
 # Local SQLite snapshots and sidecars (including custom output folders)
 *.db
 *.db-journal

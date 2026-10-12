@@ -25,30 +25,70 @@ also links the [architecture](docs/portfolio/architecture.md),
 - [x] Phase 3 — R004 cross-border destination/amount detection
 - [x] Phase 3 — four configurable explainable risk detection rules
 - [x] Phase 4 — Streamlit dashboard, persistent case review and developer UAT
+- [x] One-command demo preparation and dashboard launch with safe snapshot reuse
 
 ## Open the dashboard
 
-Python 3.10+; run from the repository root. The generator/detectors still use the
-standard library. The dashboard adds the pinned packages in `requirements.txt`.
+Python 3.10+; run from the repository root. Install the pinned dashboard
+dependencies once in a virtual environment:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -r requirements.txt
+```
+
+On Windows, activate with `.venv\Scripts\Activate.ps1` in PowerShell and use
+`python` in place of `python3` where needed. Then prepare and launch the demo with
+one command:
+
+```bash
+python3 run_demo.py
+```
+
+The launcher generates 50,000 synthetic transactions with seed 42 and all four
+planted scenarios, imports SQLite, runs R001–R004 and opens
+`http://127.0.0.1:8501` after the server is healthy. The dashboard automatically
+uses `data/demo_run/banking.db`; no sidebar path change is needed. With the
+committed default rule parameters, the fresh snapshot has 282 alerts
+(277/1/2/2). Press Ctrl+C in the terminal to stop the server.
+
+Run the same command again to validate and reuse the snapshot. Existing CSVs,
+case statuses and review history are retained; unchanged rule runs add zero
+alerts. A different seed/count, incomplete folder or different source dataset
+is refused. Choose a **new** `--demo-dir` for another dataset; existing folders
+are never reset by this launcher. Changing rule parameters can save additional
+configuration-specific alerts, as with the existing detector CLI.
+
+```bash
+python3 run_demo.py --no-browser --port 8502
+python3 run_demo.py --prepare-only
+python3 run_demo.py --seed 7 --demo-dir data/demo_seed7
+python3 run_demo.py --transactions 1000 --demo-dir data/small_demo
+```
+
+`--no-browser` prints the URL; `--prepare-only` creates/reuses data and alerts
+without starting Streamlit or requiring dashboard packages. `--transactions`
+must be at least 19. Relative demo paths resolve from the repository root even
+when the script is invoked from another working directory. Missing packages or
+an occupied port are reported before preparation when starting the dashboard.
+Fresh preparation finishes in a temporary directory before the completed demo
+is saved; a preparation lock prevents overlapping launcher writes.
+
+Generated CSVs, databases and launcher settings/locks are local and ignored by
+Git. If using a CSV folder outside `data/`, add it to `.gitignore` before committing.
+A new clone needs the preparation command to create its local snapshot.
+
+To open a previously prepared database manually, the existing entrypoint remains
+available:
+
+```bash
 python3 -m streamlit run app.py --server.address 127.0.0.1
 ```
 
-Open `http://localhost:8501`. The default snapshot is `data/banking.db`; choose
-another existing database in the sidebar. For a fresh full-scenario demo:
-
-```bash
-python3 src/generate_data.py --transactions 50000 --include-r001 --include-r003 --include-r004 --output-dir data/demo
-python3 src/load_database.py --data-dir data/demo --db data/demo.db
-python3 src/detect_risks.py --db data/demo.db --rule all
-```
-
-Enter `data/demo.db` in the dashboard's Database path field. Generated CSVs and
-databases are local; a clone alone does not contain a ready-made snapshot.
+The manual entrypoint defaults to `data/banking.db`; select another existing
+database in its sidebar. The generator/importer/detector CLIs below remain
+available for individual steps.
 
 ![Dashboard overview — real synthetic-data app screenshot](docs/screenshots/dashboard_overview.jpg)
 
@@ -106,6 +146,15 @@ python3 -m unittest discover -s tests -v
 Install requirements first to include the three Streamlit UI tests. Without those
 packages, UI tests are skipped and the standard-library core tests can still run.
 This is local app code, not a hosted deployment or bank-stakeholder acceptance.
+
+### Demo launcher validation
+
+The launcher adds 16 preparation/startup checks, bringing the complete suite to
+**95 passing tests** on October 12, 2026. These verify all four planted scenarios,
+review-preserving reuse, safe refusal of changed/unowned/incomplete snapshots,
+configuration validation, empty/corrupt database refusal, failure cleanup,
+preparation locks, missing packages, occupied ports and immediate port reuse
+after shutdown. See `docs/UAT.md` for the actual CLI/browser restart check.
 
 ## Phase 1: Run the generator
 

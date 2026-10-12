@@ -54,8 +54,9 @@ unchanged source re-import, detector reruns and new Streamlit sessions.
 
 ## Automated acceptance results
 
-79 tests passed after installing `requirements.txt`: 70 existing generator,
-ingestion and detector tests, plus these nine dashboard/review checks.
+At the Phase 4 milestone, 79 tests passed after installing `requirements.txt`:
+70 existing generator, ingestion and detector tests, plus these nine
+dashboard/review checks. The launcher extension below brings the full suite to 95.
 
 | Check | Result |
 | --- | --- |
@@ -72,7 +73,7 @@ ingestion and detector tests, plus these nine dashboard/review checks.
 Streamlit AppTest provides simulated app interactions via the official testing
 API: [AppTest documentation](https://docs.streamlit.io/develop/api-reference/app-testing/st.testing.v1.apptest).
 Chart objects and native dataframe paths were exercised, not only app startup.
-UI tests skip if Streamlit is absent; install requirements to reproduce all 79.
+UI tests skip if Streamlit is absent; install requirements to include those checks.
 
 ## Larger snapshot and real browser evidence
 
@@ -102,16 +103,53 @@ python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -r requirements.txt
 python3 -m unittest discover -s tests -v
-python3 src/generate_data.py --transactions 50000 --include-r001 --include-r003 --include-r004 --output-dir data/demo
-python3 src/load_database.py --data-dir data/demo --db data/demo.db
-python3 src/detect_risks.py --db data/demo.db --rule all
-python3 -m streamlit run app.py --server.address 127.0.0.1
+python3 run_demo.py
 ```
 
-In the sidebar choose `data/demo.db`, then R004/A00004. Inspect explanation and
+The launcher automatically selects `data/demo_run/banking.db`. In the sidebar,
+choose R004/A00004. Inspect explanation and
 evidence, enter a demo alias/notes, save no-concern, refresh and restart. Expected:
 one closed case, retained notes/history, unchanged transaction data. Choose a new
-dataset path if `data/demo.db` already contains different input.
+`--demo-dir` if the default folder already contains different input.
+
+## One-command launcher extension — October 12, 2026
+
+Entrypoint: `run_demo.py`. Default setup: seed 42, 50,000 transactions, all four
+planted scenarios, database `data/demo_run/banking.db`. Dependencies are installed
+once; then the launcher prepares/reuses the snapshot and starts the dashboard.
+The local `demo-run.json` records launcher ownership/settings for safe reuse;
+it is not a checksummed data lineage manifest.
+
+All **95 automated tests passed**, including 16 focused launcher checks:
+
+| Check | Result |
+| --- | --- |
+| Fresh preparation and complete seed evidence for R001–R004 | Passed; valid source links and SQLite integrity |
+| Repeated preparation after saving a closed review | Passed; CSV/database bytes, review history and statuses retained; zero new alerts |
+| Changed seed/count, different CSV source, unowned or incomplete folder | Passed; existing data preserved and setup refused |
+| Empty/corrupt existing database | Passed; refused without silently recreating it |
+| Invalid R004 config before generation | Passed; every config validated before any preparation |
+| Fresh fourth-rule failure after earlier rules ran | Passed; staging and own lock cleaned, no partial final folder; retry succeeds |
+| Concurrent preparation lock | Passed; another preparation's lock retained |
+| Preparation without dashboard dependencies/server | Passed with `--prepare-only` |
+| Missing dashboard packages or unavailable/invalid port | Passed; actionable error before generating data |
+| Immediate port reuse after a server connection closes | Passed; TCP TIME_WAIT is distinguished from an active listener |
+| Server startup failure or early exit | Passed; no browser opening on failure; live child terminated on startup failure |
+
+The actual launcher was also invoked from a different working directory with
+spaces in both the caller and snapshot paths. Its fresh 50,000-row setup produced
+282 alerts, selected that database automatically, and served both charts and
+R004/A00004 evidence in Chromium. A no-concern review saved through the review
+API appeared after dashboard refresh (281 open, one closed). After Ctrl+C and an
+immediate second CLI launch on the same port, all four rules added zero alerts;
+the database's logical rows and CSV bytes were unchanged, and a fresh browser session showed the retained
+closed case. This check used `--no-browser`; automatic OS browser dispatch was
+not exercised in the headless development container. If OS browser opening is
+unavailable, the launcher prints its local URL.
+
+Generated CSVs, SQLite files, launcher settings/locks and temporary default-data
+snapshots are ignored by Git. The launcher does not modify a different existing
+snapshot or introduce a hosted service.
 
 ## Practical limitations
 

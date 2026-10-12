@@ -40,8 +40,8 @@ def main():
         data = overview(db_path)
     except (OSError, sqlite3.Error, ValueError) as error:
         st.error(f"Unable to open this snapshot: {error}")
-        st.info("Generate data, load the database, then run detection before opening the dashboard.")
-        st.code("python3 src/generate_data.py --transactions 50000\npython3 src/load_database.py\npython3 src/detect_risks.py --rule all", language="bash")
+        st.info("Prepare the four-rule demo in a terminal, then set Database path to data/demo_run/banking.db.")
+        st.code("python3 run_demo.py --prepare-only", language="bash")
         return
 
     if "review_flash" in st.session_state:

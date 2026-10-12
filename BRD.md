@@ -1,7 +1,7 @@
 # Business Requirements Document (BRD)
 
 **Project:** Banking Transaction Monitoring & Risk Analytics Platform  
-**Version:** 0.8 (Portfolio and traceability documentation)
+**Version:** 0.9 (One-command local demo)
 **Date:** October 12, 2026
 **Project type:** Independent portfolio project — educational prototype  
 **Status:** Phases 1–4 implemented — local educational MVP with developer validation; no external bank stakeholder approval
@@ -298,3 +298,22 @@ The case study, architecture and presentation material are in `docs/portfolio/`.
   fraud accuracy, business savings and production experience.
 - This update adds documentation only; detector/UI behavior and the previously
   verified 79-test implementation are unchanged.
+
+## 20. Demo Usability — October 12, 2026
+
+- After the one-time dependency installation, `python3 run_demo.py` prepares a
+  seed-42, 50,000-transaction snapshot with all four planted scenarios, runs every
+  rule and launches the local dashboard using the correct database automatically.
+- The dedicated `data/demo_run/` snapshot is validated and reused on subsequent
+  launches. CSVs, saved case statuses and review history remain intact. Changed
+  dataset settings or occupied/incomplete folders require a new demo directory.
+- All rule configurations are validated before preparation. Fresh generation,
+  import and detection finish in a temporary folder before publication. A lock
+  prevents overlapping preparation; dashboard dependencies and port availability
+  are checked before preparing a normal launch.
+- `--prepare-only`, `--no-browser`, `--port`, `--transactions`, `--seed` and
+  `--demo-dir` support local setup without changing the business rule definitions.
+  Generated snapshots and launcher state are ignored by Git.
+- 95 automated tests passed, including 16 launcher checks. The actual CLI/browser
+  validation and review-preserving restart are recorded in `docs/UAT.md`. This
+  improves local reproducibility; no hosted deployment is introduced.

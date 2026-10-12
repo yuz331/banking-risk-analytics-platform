@@ -22,8 +22,8 @@ do not claim actual bank stakeholder acceptance or production compliance.
 | --- | --- | --- |
 | Usability | Filtered queue, evidence drill-down, review form and readable desktop/narrow screenshots | Developer/browser checks, not actual analyst usability research |
 | Explainability | Saved thresholds, rule version, narrative and evidence links | Pattern explanations require real-world context |
-| Reliability | Deterministic identities, unchanged repeat checks and atomic writes | Immutable snapshot workflow; no live incremental ingestion |
-| Reproducibility | Fixed seed, optional labeled scenarios and pinned app dependencies | Generated datasets are local and need regeneration on a new clone |
+| Reliability | Deterministic identities, unchanged repeat checks, atomic writes and [review-preserving demo reuse](../tests/test_run_demo.py) | Immutable snapshot workflow; no live incremental ingestion |
+| Reproducibility | Fixed seed, labeled scenarios, pinned dependencies and [one-command launcher](../run_demo.py) | Install dashboard dependencies once; a new clone prepares its own local snapshot |
 | Performance measurement | Recorded 50,000-row import/detection runs | Observed development timings, including variability; not capacity benchmarks |
 | Maintainability | Separate generation, import, rule, storage, read and UI modules | No production deployment or migration framework |
 
